@@ -194,6 +194,85 @@ module Riser
       end
     end
   end
+
+  class LocalServiceCall
+    def initialize
+      @services = {}
+    end
+
+    def add_service(name, front)
+      @services[name] = front
+      nil
+    end
+
+    def add_any_process_service(name) # dummy
+    end
+
+    def add_single_process_service(name) # dummy
+    end
+
+    def add_sticky_process_service(name) # dummy
+    end
+
+    def get_service(name)
+      @services[name] or raise KeyError, "not found a service: #{name}"
+    end
+
+    def get_sticky_process_service(name, stickiness_key) # dummy
+      get_service(name)
+    end
+
+    def [](name, stickiness_key=nil)
+      get_service(name)
+    end
+
+    def start                   # dummy
+    end
+
+    def stop                    # dummy
+    end
+  end
+
+  class DRbServices
+    extend Forwardable
+
+    def initialize(druby_process_num=0)
+      if (druby_process_num > 0) then
+        @server = DRbServiceServer.new
+        @call = DRbServiceCall.new
+        druby_process_num.times do
+          drb_uri = Riser.make_drbunix_uri
+          @server.add_druby_process(drb_uri, UNIXFileMode: 0600)
+          @call.add_druby_call(drb_uri)
+        end
+      else
+        @server = @call = LocalServiceCall.new
+      end
+    end
+
+    def add_any_process_service(name, front)
+      @server.add_service(name, front)
+      @call.add_any_process_service(name)
+      nil
+    end
+
+    def add_single_process_service(name, front)
+      @server.add_service(name, front)
+      @call.add_single_process_service(name)
+      nil
+    end
+
+    def add_sticky_process_service(name, front)
+      @server.add_service(name, front)
+      @call.add_sticky_process_service(name)
+      nil
+    end
+
+    def_delegator :@server, :start, :start_server
+    def_delegator :@server, :stop, :stop_server
+    def_delegator :@call, :start, :start_client
+    def_delegators :@call, :get_service, :get_sticky_process_service, :[]
+  end
 end
 
 # Local Variables:

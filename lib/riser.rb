@@ -5,6 +5,7 @@ require 'riser/version'
 module Riser
   autoload :DRbServiceCall, 'riser/services'
   autoload :DRbServiceServer, 'riser/services'
+  autoload :DRbServices, 'riser/services'
 end
 
 # Local Variables:
