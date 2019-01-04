@@ -82,13 +82,26 @@ module Riser
       nil
     end
 
-    def stop
+    # for forked child process
+    def detach
       for drb_process in @druby_process_list
         drb_process.latch_write_io.close
+      end
+
+      nil
+    end
+
+    def wait
+      for drb_process in @druby_process_list
         Process.waitpid(drb_process.pid)
       end
 
       nil
+    end
+
+    def stop
+      detach
+      wait
     end
   end
 
@@ -229,6 +242,9 @@ module Riser
     def start                   # dummy
     end
 
+    def detach                  # dummy
+    end
+
     def stop                    # dummy
     end
   end
@@ -269,7 +285,9 @@ module Riser
     end
 
     def_delegator :@server, :start, :start_server
+    def_delegator :@server, :detach, :detach_server # for forked child process
     def_delegator :@server, :stop, :stop_server
+
     def_delegator :@call, :start, :start_client
     def_delegators :@call, :get_service, :get_sticky_process_service, :[]
   end
