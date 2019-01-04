@@ -625,6 +625,579 @@ module Riser::Test
       assert_equal(%w[ a ], @recorder.get_file_records)
     end
   end
+
+  class DRbServicesHookTest < Test::Unit::TestCase
+    def setup
+      @test_obj = %w[ TEST1 TEST2 TEST3 ]
+      @services = Riser::DRbServices.new(1)
+      @services.add_any_process_service(:test1, @test_obj[0])
+      @services.add_single_process_service(:test2, @test_obj[1])
+      @services.add_sticky_process_service(:test3, @test_obj[2])
+
+      @store_path = 'recorder_test'
+      @recorder = CallRecorder.new(@store_path)
+    end
+
+    def teardown
+      FileUtils.rm_f(@store_path)
+    end
+
+    def test_hooks_one_service
+      @services.at_fork(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('at_fork')
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('postprocess')
+      }
+
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal([], @recorder.get_memory_records)
+        assert_equal(%w[ at_fork preprocess ], @recorder.get_file_records)
+      ensure
+        @services.stop_server
+      end
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(%w[ at_fork preprocess postprocess ], @recorder.get_file_records)
+    end
+
+    def test_hooks_many_services
+      @services.at_fork(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.at_fork')
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.at_fork')
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+      }
+
+      @services.at_fork(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal([], @recorder.get_memory_records)
+        assert_equal(%w[
+                       test1.at_fork
+                       test2.at_fork
+                       test3.at_fork
+                       test1.preprocess
+                       test2.preprocess
+                       test3.preprocess
+                     ], @recorder.get_file_records)
+      ensure
+        @services.stop_server
+      end
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.at_fork
+                     test2.at_fork
+                     test3.at_fork
+                     test1.preprocess
+                     test2.preprocess
+                     test3.preprocess
+                     test3.postprocess
+                     test2.postprocess
+                     test1.postprocess
+                   ], @recorder.get_file_records)
+    end
+
+    def test_hooks_stop_at_fork
+      @services.at_fork(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.at_fork')
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.at_fork')
+        exit
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+      }
+
+      @services.at_fork(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      @services.stop_server
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.at_fork
+                     test2.at_fork
+                   ], @recorder.get_file_records)
+    end
+
+    def test_hooks_stop_preprocess
+      @services.at_fork(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.at_fork')
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.at_fork')
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+        exit
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+      }
+
+      @services.at_fork(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      @services.stop_server
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.at_fork
+                     test2.at_fork
+                     test3.at_fork
+                     test1.preprocess
+                     test2.preprocess
+                     test1.postprocess
+                   ], @recorder.get_file_records)
+    end
+
+    def test_hooks_stop_postprocess
+      @services.at_fork(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.at_fork')
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.at_fork')
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+        exit
+      }
+
+      @services.at_fork(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      @services.stop_server
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.at_fork
+                     test2.at_fork
+                     test3.at_fork
+                     test1.preprocess
+                     test2.preprocess
+                     test3.preprocess
+                     test3.postprocess
+                     test2.postprocess
+                     test1.postprocess
+                   ], @recorder.get_file_records)
+    end
+  end
+
+  class DRbServicesHookMultiProcessTest < Test::Unit::TestCase
+    def setup
+      @test_obj = 'TEST'
+      @druby_process_num = 4
+      @services = Riser::DRbServices.new(@druby_process_num)
+      @services.add_any_process_service(:test, @test_obj)
+
+      @store_path = 'recorder_test'
+      @recorder = CallRecorder.new(@store_path)
+    end
+
+    def teardown
+      FileUtils.rm_f(@store_path)
+    end
+
+    def test_hooks
+      @services.at_fork(:test) {|test|
+        assert_equal(@test_obj, test)
+        @recorder.call('at_fork')
+      }
+      @services.preprocess(:test) {|test|
+        assert_equal(@test_obj, test)
+        @recorder.call('preprocess')
+      }
+      @services.postprocess(:test) {|test|
+        assert_equal(@test_obj, test)
+        @recorder.call('postprocess')
+      }
+
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal([], @recorder.get_memory_records)
+        assert_equal(@druby_process_num * 2, @recorder.get_file_records.length)
+        assert_equal(@druby_process_num, @recorder.get_file_records.count('at_fork'))
+        assert_equal(@druby_process_num, @recorder.get_file_records.count('preprocess'))
+      ensure
+        @services.stop_server
+      end
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(@druby_process_num * 3, @recorder.get_file_records.length)
+      assert_equal(@druby_process_num, @recorder.get_file_records.count('at_fork'))
+      assert_equal(@druby_process_num, @recorder.get_file_records.count('preprocess'))
+      assert_equal(@druby_process_num, @recorder.get_file_records.count('postprocess'))
+    end
+  end
+
+  class LocalServicesHookTest < Test::Unit::TestCase
+    def setup
+      @thread_report_on_exception = Thread.report_on_exception
+      Thread.report_on_exception = false
+
+      @test_obj = %w[ TEST1 TEST2 TEST3 ]
+      @services = Riser::DRbServices.new(0)
+      @services.add_any_process_service(:test1, @test_obj[0])
+      @services.add_single_process_service(:test2, @test_obj[1])
+      @services.add_sticky_process_service(:test3, @test_obj[2])
+
+      @store_path = 'recorder_test'
+      @recorder = CallRecorder.new(@store_path)
+    end
+
+    def teardown
+      Thread.report_on_exception = @thread_report_on_exception
+      FileUtils.rm_f(@store_path)
+    end
+
+    def test_hooks_one_service
+      @services.at_fork(:test1) {|test|
+        flunk
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('postprocess')
+      }
+
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal(%w[ preprocess ], @recorder.get_memory_records)
+        assert_equal(%w[ preprocess ], @recorder.get_file_records)
+      ensure
+        @services.stop_server
+      end
+
+      assert_equal(%w[ preprocess postprocess ], @recorder.get_memory_records)
+      assert_equal(%w[ preprocess postprocess ], @recorder.get_file_records)
+    end
+
+    def test_hooks_many_services
+      @services.at_fork(:test1) {|test|
+        flunk
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        flunk
+        @recorder.call('test2.at_fork')
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+      }
+
+      @services.at_fork(:test3) {|test|
+        flunk
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal(%w[
+                       test1.preprocess
+                       test2.preprocess
+                       test3.preprocess
+                     ], @recorder.get_memory_records)
+        assert_equal(%w[
+                       test1.preprocess
+                       test2.preprocess
+                       test3.preprocess
+                     ], @recorder.get_file_records)
+      ensure
+        @services.stop_server
+      end
+
+      assert_equal(%w[
+                     test1.preprocess
+                     test2.preprocess
+                     test3.preprocess
+                     test3.postprocess
+                     test2.postprocess
+                     test1.postprocess
+                   ], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.preprocess
+                     test2.preprocess
+                     test3.preprocess
+                     test3.postprocess
+                     test2.postprocess
+                     test1.postprocess
+                   ], @recorder.get_file_records)
+    end
+
+    def test_hooks_error_preprocess
+      @services.at_fork(:test1) {|test|
+        flunk
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        flunk
+        @recorder.call('test2.at_fork')
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+        raise 'abort'
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+      }
+
+      @services.at_fork(:test3) {|test|
+        flunk
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      begin
+        assert_raise(RuntimeError) {
+          @services.start_client
+        }
+      ensure
+        @services.stop_server
+      end
+
+      assert_equal(%w[
+                     test1.preprocess
+                     test2.preprocess
+                     test1.postprocess
+                  ], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.preprocess
+                     test2.preprocess
+                     test1.postprocess
+                   ], @recorder.get_file_records)
+    end
+
+    def test_hooks_stop_postprocess
+      @services.at_fork(:test1) {|test|
+        flunk
+      }
+      @services.preprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.preprocess')
+      }
+      @services.postprocess(:test1) {|test|
+        assert_equal(@test_obj[0], test)
+        @recorder.call('test1.postprocess')
+      }
+
+      @services.at_fork(:test2) {|test|
+        flunk
+        @recorder.call('test2.at_fork')
+      }
+      @services.preprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.preprocess')
+      }
+      @services.postprocess(:test2) {|test|
+        assert_equal(@test_obj[1], test)
+        @recorder.call('test2.postprocess')
+        raise 'abort'
+      }
+
+      @services.at_fork(:test3) {|test|
+        flunk
+        @recorder.call('test3.at_fork')
+      }
+      @services.preprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.preprocess')
+      }
+      @services.postprocess(:test3) {|test|
+        assert_equal(@test_obj[2], test)
+        @recorder.call('test3.postprocess')
+      }
+
+      @services.start_server
+      begin
+        @services.start_client
+      ensure
+        assert_raise(RuntimeError) { @services.stop_server }
+      end
+
+      assert_equal(%w[
+                     test1.preprocess
+                     test2.preprocess
+                     test3.preprocess
+                     test3.postprocess
+                     test2.postprocess
+                     test1.postprocess
+                   ], @recorder.get_memory_records)
+      assert_equal(%w[
+                     test1.preprocess
+                     test2.preprocess
+                     test3.preprocess
+                     test3.postprocess
+                     test2.postprocess
+                     test1.postprocess
+                   ], @recorder.get_file_records)
+    end
+  end
 end
 
 # Local Variables:
