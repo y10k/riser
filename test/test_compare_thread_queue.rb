@@ -46,6 +46,47 @@ module Riser::Test
     end
     private :measure_elapsed_time
 
+    def test_sized_queue
+      queue = SizedQueue.new(@thread_num * 10)
+      push_values = (1..@count_max).to_a
+      barrier = CyclicBarrier.new(@thread_num + 1)
+
+      @thread_num.times{
+        t = { :pop_values => [] }
+        t[:thread] = Thread.new{
+          barrier.wait
+          begin
+            while (value = queue.pop)
+              t[:pop_values] << value
+            end
+          ensure
+            barrier.wait
+          end
+        }
+        @thread_list << t
+      }
+
+      measure_elapsed_time 'sized queue' do
+        barrier.wait
+        begin
+          while (value = push_values.shift)
+            queue.push(value)
+          end
+          queue.close
+        ensure
+          barrier.wait
+        end
+      end
+
+      for t in @thread_list
+        t[:thread].join
+      end
+
+      push_values = (1..@count_max).to_a
+      pop_values = @thread_list.map{|t| t[:pop_values] }.flatten
+      assert_equal(push_values, pop_values.sort)
+    end
+
     def test_pull_buffer
       buf = Riser::PullBuffer.new
       push_values = (1..@count_max).to_a
