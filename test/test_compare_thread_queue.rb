@@ -2,7 +2,6 @@
 
 require 'pp' if $DEBUG
 require 'riser'
-require 'riser/server'          # no autoload
 require 'test/unit'
 
 module Riser::Test

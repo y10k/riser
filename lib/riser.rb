@@ -10,6 +10,7 @@ module Riser
   autoload :PullBuffer, 'riser/server'
   autoload :ReadPoll, 'riser/poll'
   autoload :Stream, 'riser/stream'
+  autoload :TimeoutSizedQueue, 'riser/server'
   autoload :WriteBufferStream, 'riser/stream'
 end
 
