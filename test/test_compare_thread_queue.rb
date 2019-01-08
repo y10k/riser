@@ -130,7 +130,8 @@ module Riser::Test
     end
 
     def test_timeout_sized_queue
-      queue = Riser::TimeoutSizedQueue.new(@thread_num * 10)
+      queue = Riser::TimeoutSizedQueue.new(@thread_num * 10, name: 'perf_test')
+      # queue.stat_start
       push_values = (1..@count_max).to_a
       barrier = CyclicBarrier.new(@thread_num + 1)
 
@@ -160,6 +161,12 @@ module Riser::Test
           queue.close
         ensure
           barrier.wait
+        end
+      end
+
+      if ($DEBUG) then
+        if (stat = queue.stat_get) then
+          pp stat
         end
       end
 
