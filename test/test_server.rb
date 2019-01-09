@@ -130,13 +130,19 @@ module Riser::Test
       @recorder = CallRecorder.new(@store_path)
     end
 
-    SIGNAL_STOP_GRACEFUL = 'QUIT'
-    SIGNAL_STOP_FORCED = 'INT'
+    SIGNAL_STOP_GRACEFUL     = 'QUIT'
+    SIGNAL_STOP_FORCED       = 'INT'
+    SIGNAL_STAT_GET_RESET    = 'USR1'
+    SIGNAL_STAT_GET_NO_RESET = 'WINCH'
+    SIGNAL_STAT_STOP         = 'USR2'
 
     def start_server
       @pid = fork{
         Signal.trap(SIGNAL_STOP_GRACEFUL) { @server.signal_stop_graceful }
         Signal.trap(SIGNAL_STOP_FORCED) { @server.signal_stop_forced }
+        Signal.trap(SIGNAL_STAT_GET_RESET) { @server.signal_stat_get }
+        Signal.trap(SIGNAL_STAT_GET_NO_RESET) { @server.signal_stat_get(reset: false) }
+        Signal.trap(SIGNAL_STAT_STOP) { @server.signal_stat_stop }
         FileUtils.touch(@server_start_wait_path)
         @server.start(UNIXServer.new(@unix_socket_path))
       }
@@ -343,6 +349,156 @@ module Riser::Test
                      dispatch
                      request-response
                      at_stop
+                   ], @recorder.get_file_records)
+    end
+
+    def test_server_stat_default
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        if (line = socket.gets)
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+      }
+      server_pid = start_server
+
+      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      s = connect_server
+      begin
+        s.write("HALO\n")
+        assert_equal("HALO\n", s.gets)
+        assert_nil(s.gets)
+      ensure
+        s.close
+      end
+
+      Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      Process.kill(SIGNAL_STAT_STOP, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      assert_equal(%w[ dispatch request-response ], @recorder.get_file_records)
+    end
+
+    def test_server_stat_hook
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.at_stat{|info|
+        @recorder.call('stat')
+        pp info if $DEBUG
+      }
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        if (line = socket.gets)
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+      }
+      server_pid = start_server
+
+      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      s = connect_server
+      begin
+        s.write("foo\n")
+        assert_equal("foo\n", s.gets)
+        assert_nil(s.gets)
+      ensure
+        s.close
+      end
+
+      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      s = connect_server
+      begin
+        s.write("bar\n")
+        assert_equal("bar\n", s.gets)
+        assert_nil(s.gets)
+      ensure
+        s.close
+      end
+
+      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      assert_equal(%w[
+                     stat
+                     dispatch
+                     request-response
+                     stat
+                     dispatch
+                     request-response
+                     stat
+                   ], @recorder.get_file_records)
+    end
+
+    def test_server_stat_hook_no_reset
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.at_stat{|info|
+        @recorder.call('stat')
+        pp info if $DEBUG
+      }
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        if (line = socket.gets)
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+      }
+      server_pid = start_server
+
+      Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      s = connect_server
+      begin
+        s.write("foo\n")
+        assert_equal("foo\n", s.gets)
+        assert_nil(s.gets)
+      ensure
+        s.close
+      end
+
+      Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      s = connect_server
+      begin
+        s.write("bar\n")
+        assert_equal("bar\n", s.gets)
+        assert_nil(s.gets)
+      ensure
+        s.close
+      end
+
+      Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
+      sleep(server_polling_timeout_seconds * 10)
+
+      assert_equal(%w[
+                     stat
+                     dispatch
+                     request-response
+                     stat
+                     dispatch
+                     request-response
+                     stat
                    ], @recorder.get_file_records)
     end
   end

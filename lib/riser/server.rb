@@ -205,10 +205,12 @@ module Riser
       @thread_queue_size = 20
       @thread_queue_polling_timeout_seconds = 0.1
       @at_stop = NO_CALL
+      @at_stat = NO_CALL
       @preprocess = NO_CALL
       @postprocess = NO_CALL
       @dispatch = nil
       @stop_state = nil
+      @stat_operation_queue = []
     end
 
     attr_accessor :accept_polling_timeout_seconds
@@ -222,6 +224,10 @@ module Riser
     def at_stop(&block)         # :yields:
       @at_stop = block
       nil
+    end
+
+    def at_stat(&block)         # :yields: stat_info
+      @at_stat = block
     end
 
     def preprocess(&block)      # :yields:
@@ -251,6 +257,43 @@ module Riser
       nil
     end
 
+    # should be called from signal(2) handler
+    def signal_stat_get(reset: true)
+      if (reset) then
+        @stat_operation_queue << :get_and_reset
+      else
+        @stat_operation_queue << :get
+      end
+
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stat_stop
+      @stat_operation_queue << :stop
+      nil
+    end
+
+    def apply_signal_stat(queue)
+      unless (@stat_operation_queue.empty?) then
+        while (stat_ope = @stat_operation_queue.shift)
+          case (stat_ope)
+          when :get_and_reset
+            queue.stat_start
+            @at_stat.call(queue.stat_get(reset: true))
+          when :get
+            queue.stat_start
+            @at_stat.call(queue.stat_get(reset: false))
+          when :stop
+            queue.stat_stop
+          else
+            raise "internal error: unknown stat operation: #{stat_ope}"
+          end
+        end
+      end
+    end
+    private :apply_signal_stat
+
     # should be executed on the main thread sharing the stack with
     # signal(2) handlers
     def start(server_socket)
@@ -275,6 +318,7 @@ module Riser
             while (true)
               begin
                 @stop_state and throw(:end_of_server)
+                apply_signal_stat(queue)
                 readable = server_socket.wait_readable(@accept_polling_timeout_seconds)
               end while (readable.nil?)
 
@@ -284,6 +328,7 @@ module Riser
                   socket.close
                   throw(:end_of_server)
                 end
+                apply_signal_stat(queue)
               end
             end
           }
