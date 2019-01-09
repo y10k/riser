@@ -9,6 +9,7 @@ module Riser
   autoload :LoggingStream, 'riser/stream'
   autoload :ReadPoll, 'riser/poll'
   autoload :Stream, 'riser/stream'
+  autoload :TemporaryPath, 'riser/temppath'
   autoload :TimeoutSizedQueue, 'riser/server'
   autoload :WriteBufferStream, 'riser/stream'
 end

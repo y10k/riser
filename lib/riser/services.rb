@@ -4,23 +4,9 @@ require 'drb/drb'
 require 'drb/ssl'
 require 'drb/unix'
 require 'forwardable'
-require 'securerandom'
 require 'thread'
-require 'tmpdir'
 
 module Riser
-  def make_unix_socket_path
-    tmp_dir = Dir.tmpdir
-    uuid = SecureRandom.uuid
-    "#{tmp_dir}/riser_#{uuid}"
-  end
-  module_function :make_unix_socket_path
-
-  def make_drbunix_uri
-    "drbunix:#{make_unix_socket_path}.drb"
-  end
-  module_function :make_drbunix_uri
-
   DRbService = Struct.new(:front, :at_fork, :preprocess, :postprocess, :ref) # :nodoc:
   DRbService::NO_CALL = proc{|front| } # :nodoc:
 
@@ -209,7 +195,7 @@ module Riser
       nil
     end
 
-    def start(timeout_seconds=30, local_druby_uri=Riser.make_drbunix_uri, config={ UNIXFileMode: 0600 })
+    def start(timeout_seconds=30, local_druby_uri=Riser::TemporaryPath.make_drbunix_uri, config={ UNIXFileMode: 0600 })
       @random = Random.new
       unless (DRb.primary_server) then
         DRb.start_service(local_druby_uri, nil, config)
@@ -472,7 +458,7 @@ module Riser
         @server = DRbServiceServer.new
         @call = DRbServiceCall.new
         druby_process_num.times do
-          drb_uri = Riser.make_drbunix_uri
+          drb_uri = Riser::TemporaryPath.make_drbunix_uri
           @server.add_druby_process(drb_uri, UNIXFileMode: 0600)
           @call.add_druby_call(drb_uri)
         end

@@ -55,7 +55,7 @@ module Riser::Test
 
       @drb_proc_num = 8
       @drb_proc_num.times do
-        uri = Riser.make_drbunix_uri
+        uri = Riser::TemporaryPath.make_drbunix_uri
         @call.add_druby_call(uri)
         @server.add_druby_process(uri, UNIXFileMode: 0600)
       end
