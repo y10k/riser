@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'io/wait'
 require 'thread'
 
 module Riser
@@ -192,6 +193,122 @@ module Riser
 
         info
       end
+    end
+  end
+
+  class SocketServer
+    NO_CALL = proc{}            # :nodoc:
+
+    def initialize
+      @accept_polling_timeout_seconds = 0.1
+      @thread_num = 4
+      @thread_queue_size = 20
+      @thread_queue_polling_timeout_seconds = 0.1
+      @at_stop = NO_CALL
+      @preprocess = NO_CALL
+      @postprocess = NO_CALL
+      @dispatch = nil
+      @stop_state = nil
+    end
+
+    attr_accessor :accept_polling_timeout_seconds
+    attr_accessor :thread_num
+    attr_accessor :thread_queue_size
+    attr_accessor :thread_queue_polling_timeout_seconds
+
+    def at_fork(&block)         # :yields:
+    end
+
+    def at_stop(&block)         # :yields:
+      @at_stop = block
+      nil
+    end
+
+    def preprocess(&block)      # :yields:
+      @preprocess = block
+      nil
+    end
+
+    def postprocess(&block)     # :yields:
+      @postprocess = block
+      nil
+    end
+
+    def dispatch(&block)        # :yields: socket
+      @dispatch = block
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stop_graceful
+      @stop_state ||= :graceful
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stop_forced
+      @stop_state ||= :forced
+      nil
+    end
+
+    # should be executed on the main thread sharing the stack with
+    # signal(2) handlers
+    def start(server_socket)
+      @preprocess.call
+      begin
+        queue = TimeoutSizedQueue.new(@thread_queue_size, name: 'thread_queue')
+        begin
+          thread_list = []
+          @thread_num.times do
+            thread_list << Thread.new{
+              while (socket = queue.pop)
+                begin
+                  @dispatch.call(socket)
+                ensure
+                  socket.close unless socket.closed?
+                end
+              end
+            }
+          end
+
+          catch (:end_of_server) {
+            while (true)
+              begin
+                @stop_state and throw(:end_of_server)
+                readable = server_socket.wait_readable(@accept_polling_timeout_seconds)
+              end while (readable.nil?)
+
+              socket = server_socket.accept
+              until (queue.push(socket, @thread_queue_polling_timeout_seconds))
+                if (@stop_state == :forced) then
+                  socket.close
+                  throw(:end_of_server)
+                end
+              end
+            end
+          }
+        ensure
+          queue.close
+        end
+
+        @at_stop.call
+        case (@stop_state)
+        when :graceful
+          for thread in thread_list
+            thread.join
+          end
+        when :forced
+          for thread in thread_list
+            thread.kill
+          end
+        else
+          raise "internal error: unknown @stop_state(#{@stop_state.inspect})"
+        end
+      ensure
+        @postprocess.call
+      end
+
+      nil
     end
   end
 end
