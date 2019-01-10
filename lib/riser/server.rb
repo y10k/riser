@@ -196,24 +196,23 @@ module Riser
     end
   end
 
-  class SocketServer
-    NO_CALL = proc{}            # :nodoc:
-
-    def initialize
-      @accept_polling_timeout_seconds = 0.1
-      @thread_num = 4
-      @thread_queue_size = 20
-      @thread_queue_polling_timeout_seconds = 0.1
-      @at_stop = NO_CALL
-      @at_stat = NO_CALL
-      @preprocess = NO_CALL
-      @postprocess = NO_CALL
+  class ThreadDispatcher
+    def initialize(thread_queue_name)
+      @thread_num = nil
+      @thread_queue_name = thread_queue_name
+      @thread_queue_size = nil
+      @thread_queue_polling_timeout_seconds = nil
+      @at_stop = nil
+      @at_stat = nil
+      @preprocess = nil
+      @postprocess = nil
+      @accept = nil
       @dispatch = nil
+      @dispose = nil
       @stop_state = nil
       @stat_operation_queue = []
     end
 
-    attr_accessor :accept_polling_timeout_seconds
     attr_accessor :thread_num
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
@@ -240,8 +239,18 @@ module Riser
       nil
     end
 
-    def dispatch(&block)        # :yields: socket
+    def accept(&block)          # :yields:
+      @accept = block
+      nil
+    end
+
+    def dispatch(&block)        # :yields: accept_object
       @dispatch = block
+      nil
+    end
+
+    def dispose(&block)         # :yields: accept_object
+      @dispose = block
       nil
     end
 
@@ -296,19 +305,19 @@ module Riser
 
     # should be executed on the main thread sharing the stack with
     # signal(2) handlers
-    def start(server_socket)
+    def start
       @preprocess.call
       begin
-        queue = TimeoutSizedQueue.new(@thread_queue_size, name: 'thread_queue')
+        queue = TimeoutSizedQueue.new(@thread_queue_size, name: @thread_queue_name)
         begin
           thread_list = []
           @thread_num.times do
             thread_list << Thread.new{
-              while (socket = queue.pop)
+              while (accept_object = queue.pop)
                 begin
-                  @dispatch.call(socket)
+                  @dispatch.call(accept_object)
                 ensure
-                  socket.close unless socket.closed?
+                  @dispose.call(accept_object)
                 end
               end
             }
@@ -319,13 +328,12 @@ module Riser
               begin
                 @stop_state and throw(:end_of_server)
                 apply_signal_stat(queue)
-                readable = server_socket.wait_readable(@accept_polling_timeout_seconds)
-              end while (readable.nil?)
+                accept_object = @accept.call
+              end until (accept_object)
 
-              socket = server_socket.accept
-              until (queue.push(socket, @thread_queue_polling_timeout_seconds))
+              until (queue.push(accept_object, @thread_queue_polling_timeout_seconds))
                 if (@stop_state == :forced) then
-                  socket.close
+                  @dispose.call(accept_object)
                   throw(:end_of_server)
                 end
                 apply_signal_stat(queue)
@@ -352,6 +360,109 @@ module Riser
       ensure
         @postprocess.call
       end
+
+      nil
+    end
+  end
+
+  class SocketServer
+    NO_CALL = proc{}            # :nodoc:
+
+    def initialize
+      @accept_polling_timeout_seconds = 0.1
+      @thread_num = 4
+      @thread_queue_size = 20
+      @thread_queue_polling_timeout_seconds = 0.1
+      @at_fork = NO_CALL
+      @at_stop = NO_CALL
+      @at_stat = NO_CALL
+      @preprocess = NO_CALL
+      @postprocess = NO_CALL
+      @dispatch = nil
+      @dispatcher = nil
+    end
+
+    attr_accessor :accept_polling_timeout_seconds
+    attr_accessor :thread_num
+    attr_accessor :thread_queue_size
+    attr_accessor :thread_queue_polling_timeout_seconds
+
+    def at_fork(&block)         # :yields:
+      @at_fork = block
+      nil
+    end
+
+    def at_stop(&block)         # :yields:
+      @at_stop = block
+      nil
+    end
+
+    def at_stat(&block)         # :yields: stat_info
+      @at_stat = block
+      nil
+    end
+
+    def preprocess(&block)      # :yields:
+      @preprocess = block
+      nil
+    end
+
+    def postprocess(&block)     # :yields:
+      @postprocess = block
+      nil
+    end
+
+    def dispatch(&block)        # :yields: socket
+      @dispatch = block
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stop_graceful
+      @dispatcher.signal_stop_graceful if @dispatcher
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stop_forced
+      @dispatcher.signal_stop_forced if @dispatcher
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stat_get(reset: true)
+      @dispatcher.signal_stat_get(reset: reset) if @dispatcher
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stat_stop
+      @dispatcher.signal_stat_stop if @dispatcher
+      nil
+    end
+
+    # should be executed on the main thread sharing the stack with
+    # signal(2) handlers
+    def start(server_socket)
+      @dispatcher = ThreadDispatcher.new('thread_queue')
+      @dispatcher.thread_num = @thread_num
+      @dispatcher.thread_queue_size = @thread_queue_size
+      @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
+
+      @dispatcher.at_fork(&@at_fork)
+      @dispatcher.at_stop(&@at_stop)
+      @dispatcher.at_stat(&@at_stat)
+      @dispatcher.preprocess(&@preprocess)
+      @dispatcher.postprocess(&@postprocess)
+
+      @dispatcher.accept{
+        if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
+          server_socket.accept
+        end
+      }
+      @dispatcher.dispatch(&@dispatch)
+      @dispatcher.dispose{|socket| socket.close }
+      @dispatcher.start
 
       nil
     end

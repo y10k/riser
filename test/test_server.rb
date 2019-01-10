@@ -366,6 +366,7 @@ module Riser::Test
         socket.close
       }
       server_pid = start_server
+      sleep(server_polling_timeout_seconds * 10)
 
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
@@ -406,6 +407,7 @@ module Riser::Test
         socket.close
       }
       server_pid = start_server
+      sleep(server_polling_timeout_seconds * 10)
 
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
@@ -463,6 +465,7 @@ module Riser::Test
         socket.close
       }
       server_pid = start_server
+      sleep(server_polling_timeout_seconds * 10)
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
