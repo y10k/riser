@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'io/wait'
+require 'socket'
 require 'thread'
 
 module Riser
@@ -365,11 +366,286 @@ module Riser
     end
   end
 
+  SocketProcess = Struct.new(:pid, :io, :command_queue)
+
+  class SocketProcessDispatcher
+    def initialize(process_queue_name, thread_queue_name)
+      @accept_polling_timeout_seconds = nil
+      @process_num = nil
+      @process_queue_name = process_queue_name
+      @process_queue_size = nil
+      @process_queue_polling_timeout_seconds = nil
+      @thread_num = nil
+      @thread_queue_name = thread_queue_name
+      @thread_queue_size = nil
+      @thread_queue_polling_timeout_seconds = nil
+      @at_fork= nil
+      @at_stop = nil
+      @at_stat = nil
+      @preprocess = nil
+      @postprocess = nil
+      @dispatch = nil
+      @stop_state = nil
+      @stat_operation_queue = []
+    end
+
+    attr_accessor :accept_polling_timeout_seconds
+    attr_accessor :process_num
+    attr_accessor :process_queue_size
+    attr_accessor :process_queue_polling_timeout_seconds
+    attr_accessor :thread_num
+    attr_accessor :thread_queue_size
+    attr_accessor :thread_queue_polling_timeout_seconds
+
+    def at_fork(&block)         # :yields:
+      @at_fork = block
+      nil
+    end
+
+    def at_stop(&block)         # :yields:
+      @at_stop = block
+      nil
+    end
+
+    def at_stat(&block)         # :yields: stat_info
+      @at_stat = block
+      nil
+    end
+
+    def preprocess(&block)      # :yields:
+      @preprocess = block
+      nil
+    end
+
+    def postprocess(&block)     # :yields:
+      @postprocess = block
+      nil
+    end
+
+    def dispatch(&block)        # :yields: accept_object
+      @dispatch = block
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stop_graceful
+      @stop_state ||= :graceful
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stop_forced
+      @stop_state ||= :forced
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stat_get(reset: true)
+      if (reset) then
+        @stat_operation_queue << :get_and_reset
+      else
+        @stat_operation_queue << :get
+      end
+
+      nil
+    end
+
+    # should be called from signal(2) handler
+    def signal_stat_stop
+      @stat_operation_queue << :stop
+      nil
+    end
+
+    def apply_signal_stat(process_queue, process_list)
+      unless (@stat_operation_queue.empty?) then
+        while (stat_ope = @stat_operation_queue.shift)
+          case (stat_ope)
+          when :get_and_reset
+            process_queue.stat_start
+            @at_stat.call(process_queue.stat_get(reset: true))
+            for process in process_list
+              unless (process.command_queue.closed?) then
+                process.command_queue.push("STGR\n")
+              end
+            end
+          when :get
+            process_queue.stat_start
+            @at_stat.call(process_queue.stat_get(reset: false))
+            for process in process_list
+              unless (process.command_queue.closed?) then
+                process.command_queue.push("STGE\n")
+              end
+            end
+          when :stop
+            process_queue.stat_stop
+            for process in process_list
+              unless (process.command_queue.closed?) then
+                process.command_queue.push("STST\n")
+              end
+            end
+          else
+            raise "internal error: unknown stat operation: #{stat_ope}"
+          end
+        end
+      end
+    end
+    private :apply_signal_stat
+
+    def start(server_socket)
+      case (server_socket)
+      when TCPServer, UNIXServer
+        socket_class = server_socket.class.superclass
+      else
+        socket_class = IO
+      end
+
+      process_list = []
+      @process_num.times do |pos|
+        child_io, parent_io = UNIXSocket.socketpair
+        pid = Process.fork{
+          parent_io.close
+          pos.times do |i|
+            process_list[i].io.close
+          end
+
+          thread_dispatcher = ThreadDispatcher.new("#{@thread_queue_name}-#{pos}")
+          thread_dispatcher.thread_num = @thread_num
+          thread_dispatcher.thread_queue_size = @thread_queue_size
+          thread_dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
+
+          thread_dispatcher.at_stop(&@at_stop)
+          thread_dispatcher.at_stat(&@at_stat)
+          thread_dispatcher.preprocess(&@preprocess)
+          thread_dispatcher.postprocess(&@postprocess)
+
+          thread_dispatcher.accept{
+            child_io.write("RADY\n")
+            if (command = child_io.read(5)) then
+              case (command)
+              when "SEND\n"
+                child_io.recv_io(socket_class)
+              when "STGR\n"
+                thread_dispatcher.signal_stat_get(reset: true); nil
+              when "STGE\n"
+                thread_dispatcher.signal_stat_get(reset: false); nil
+              when "STST\n"
+                thread_dispatcher.signal_stat_stop; nil
+              when "STOG\n"
+                thread_dispatcher.signal_stop_graceful; nil
+              when "STOF\n"
+                thread_dispatcher.signal_stop_forced; nil
+              else
+                raise "internal error: unknown command: #{command}"
+              end
+            end
+          }
+          thread_dispatcher.dispatch(&@dispatch)
+          thread_dispatcher.dispose{|socket| socket.close }
+
+          begin
+            @at_fork.call
+            thread_dispatcher.start
+          ensure
+            child_io.close
+          end
+        }
+        child_io.close
+
+        process_list << SocketProcess.new(pid, parent_io, Queue.new)
+      end
+
+      process_queue = TimeoutSizedQueue.new(@process_queue_size, name: @process_queue_name)
+      thread_list = []
+      process_list.each{|process|
+        thread_list << Thread.new{
+          until (process_queue.at_end_of_queue?)
+            response = process.io.read(5) or break
+            response == "RADY\n" or raise "internal error: unknown response: #{response}"
+            unless (process.command_queue.empty?) then
+              process.io.write(process.command_queue.pop)
+            else
+              until (process_queue.at_end_of_queue?)
+                if (socket = process_queue.pop(@process_queue_polling_timeout_seconds)) then
+                  process.io.write("SEND\n")
+                  process.io.send_io(socket)
+                  socket.close
+                else
+                  unless (process.command_queue.empty?) then
+                    process.io.write(process.command_queue.pop)
+                    break
+                  end
+                end
+              end
+            end
+          end
+
+          until (process.command_queue.empty?)
+            response = process.io.read(5) or break
+            response == "RADY\n" or raise "internal error: unknown response: #{response}"
+            process.io.write(process.command_queue.pop)
+          end
+        }
+      }
+
+      catch (:end_of_server) {
+        while (true)
+          begin
+            @stop_state and throw(:end_of_server)
+            apply_signal_stat(process_queue, process_list)
+            readable = server_socket.wait_readable(@accept_polling_timeout_seconds)
+          end while (readable.nil?)
+
+          socket = server_socket.accept
+          until (process_queue.push(socket, @process_queue_polling_timeout_seconds))
+            if (@stop_state == :forced) then
+              socket.close
+              throw(:end_of_server)
+            end
+            apply_signal_stat(process_queue, process_list)
+          end
+        end
+      }
+
+      case (@stop_state)
+      when :graceful
+        for process in process_list
+          process.command_queue.push("STOG\n")
+          process.command_queue.close
+        end
+        process_queue.close
+        for thread in thread_list
+          thread.join
+        end
+      when :forced
+        for process in process_list
+          process.command_queue.push("STOF\n")
+          process.command_queue.close
+        end
+        process_queue.close
+        for thread in thread_list
+          thread.join
+        end
+      else
+        raise "internal error: unknown @stop_state(#{@stop_state.inspect})"
+      end
+
+      for process in process_list
+        Process.wait(process.pid)
+        process.io.close
+      end
+
+      nil
+    end
+  end
+
   class SocketServer
     NO_CALL = proc{}            # :nodoc:
 
     def initialize
       @accept_polling_timeout_seconds = 0.1
+      @process_num = 0
+      @process_queue_size = 20
+      @process_queue_polling_timeout_seconds = 0.1
       @thread_num = 4
       @thread_queue_size = 20
       @thread_queue_polling_timeout_seconds = 0.1
@@ -383,6 +659,9 @@ module Riser
     end
 
     attr_accessor :accept_polling_timeout_seconds
+    attr_accessor :process_num
+    attr_accessor :process_queue_size
+    attr_accessor :process_queue_polling_timeout_seconds
     attr_accessor :thread_num
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
@@ -444,25 +723,44 @@ module Riser
     # should be executed on the main thread sharing the stack with
     # signal(2) handlers
     def start(server_socket)
-      @dispatcher = ThreadDispatcher.new('thread_queue')
-      @dispatcher.thread_num = @thread_num
-      @dispatcher.thread_queue_size = @thread_queue_size
-      @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
+      if (@process_num > 0) then
+        @dispatcher = SocketProcessDispatcher.new('process_queue', 'thread_queue')
+        @dispatcher.accept_polling_timeout_seconds = @accept_polling_timeout_seconds
+        @dispatcher.process_num = @process_num
+        @dispatcher.process_queue_size = @process_queue_size
+        @dispatcher.process_queue_polling_timeout_seconds = @process_queue_polling_timeout_seconds
+        @dispatcher.thread_num = @thread_num
+        @dispatcher.thread_queue_size = @thread_queue_size
+        @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
 
-      @dispatcher.at_fork(&@at_fork)
-      @dispatcher.at_stop(&@at_stop)
-      @dispatcher.at_stat(&@at_stat)
-      @dispatcher.preprocess(&@preprocess)
-      @dispatcher.postprocess(&@postprocess)
+        @dispatcher.at_fork(&@at_fork)
+        @dispatcher.at_stop(&@at_stop)
+        @dispatcher.at_stat(&@at_stat)
+        @dispatcher.preprocess(&@preprocess)
+        @dispatcher.postprocess(&@postprocess)
+        @dispatcher.dispatch(&@dispatch)
+        @dispatcher.start(server_socket)
+      else
+        @dispatcher = ThreadDispatcher.new('thread_queue')
+        @dispatcher.thread_num = @thread_num
+        @dispatcher.thread_queue_size = @thread_queue_size
+        @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
 
-      @dispatcher.accept{
-        if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
-          server_socket.accept
-        end
-      }
-      @dispatcher.dispatch(&@dispatch)
-      @dispatcher.dispose{|socket| socket.close }
-      @dispatcher.start
+        @dispatcher.at_fork(&@at_fork)
+        @dispatcher.at_stop(&@at_stop)
+        @dispatcher.at_stat(&@at_stat)
+        @dispatcher.preprocess(&@preprocess)
+        @dispatcher.postprocess(&@postprocess)
+
+        @dispatcher.accept{
+          if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
+            server_socket.accept
+          end
+        }
+        @dispatcher.dispatch(&@dispatch)
+        @dispatcher.dispose{|socket| socket.close }
+        @dispatcher.start
+      end
 
       nil
     end
