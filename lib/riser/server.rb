@@ -197,7 +197,7 @@ module Riser
     end
   end
 
-  class ThreadDispatcher
+  class SocketThreadDispatcher
     def initialize(thread_queue_name)
       @thread_num = nil
       @thread_queue_name = thread_queue_name
@@ -209,7 +209,6 @@ module Riser
       @postprocess = nil
       @accept = nil
       @dispatch = nil
-      @dispose = nil
       @stop_state = nil
       @stat_operation_queue = []
     end
@@ -245,13 +244,8 @@ module Riser
       nil
     end
 
-    def dispatch(&block)        # :yields: accept_object
+    def dispatch(&block)        # :yields: socket
       @dispatch = block
-      nil
-    end
-
-    def dispose(&block)         # :yields: accept_object
-      @dispose = block
       nil
     end
 
@@ -314,11 +308,11 @@ module Riser
           thread_list = []
           @thread_num.times do
             thread_list << Thread.new{
-              while (accept_object = queue.pop)
+              while (socket = queue.pop)
                 begin
-                  @dispatch.call(accept_object)
+                  @dispatch.call(socket)
                 ensure
-                  @dispose.call(accept_object)
+                  socket.close unless socket.closed?
                 end
               end
             }
@@ -329,12 +323,12 @@ module Riser
               begin
                 @stop_state and throw(:end_of_server)
                 apply_signal_stat(queue)
-                accept_object = @accept.call
-              end until (accept_object)
+                socket = @accept.call
+              end until (socket)
 
-              until (queue.push(accept_object, @thread_queue_polling_timeout_seconds))
+              until (queue.push(socket, @thread_queue_polling_timeout_seconds))
                 if (@stop_state == :forced) then
-                  @dispose.call(accept_object)
+                  socket.close
                   throw(:end_of_server)
                 end
                 apply_signal_stat(queue)
@@ -508,7 +502,7 @@ module Riser
             process_list[i].io.close
           end
 
-          thread_dispatcher = ThreadDispatcher.new("#{@thread_queue_name}-#{pos}")
+          thread_dispatcher = SocketThreadDispatcher.new("#{@thread_queue_name}-#{pos}")
           thread_dispatcher.thread_num = @thread_num
           thread_dispatcher.thread_queue_size = @thread_queue_size
           thread_dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
@@ -540,7 +534,6 @@ module Riser
             end
           }
           thread_dispatcher.dispatch(&@dispatch)
-          thread_dispatcher.dispose{|socket| socket.close }
 
           begin
             @at_fork.call
@@ -741,7 +734,7 @@ module Riser
         @dispatcher.dispatch(&@dispatch)
         @dispatcher.start(server_socket)
       else
-        @dispatcher = ThreadDispatcher.new('thread_queue')
+        @dispatcher = SocketThreadDispatcher.new('thread_queue')
         @dispatcher.thread_num = @thread_num
         @dispatcher.thread_queue_size = @thread_queue_size
         @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
@@ -751,14 +744,12 @@ module Riser
         @dispatcher.at_stat(&@at_stat)
         @dispatcher.preprocess(&@preprocess)
         @dispatcher.postprocess(&@postprocess)
-
         @dispatcher.accept{
           if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
             server_socket.accept
           end
         }
         @dispatcher.dispatch(&@dispatch)
-        @dispatcher.dispose{|socket| socket.close }
         @dispatcher.start
       end
 
