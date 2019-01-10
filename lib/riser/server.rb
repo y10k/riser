@@ -217,9 +217,6 @@ module Riser
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
 
-    def at_fork(&block)         # :yields:
-    end
-
     def at_stop(&block)         # :yields:
       @at_stop = block
       nil
@@ -739,7 +736,6 @@ module Riser
         @dispatcher.thread_queue_size = @thread_queue_size
         @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
 
-        @dispatcher.at_fork(&@at_fork)
         @dispatcher.at_stop(&@at_stop)
         @dispatcher.at_stat(&@at_stat)
         @dispatcher.preprocess(&@preprocess)
