@@ -285,7 +285,7 @@ module Riser
             queue.stat_stop
             @at_stat_stop.call
           else
-            raise "internal error: unknown stat operation: #{stat_ope}"
+            raise "internal error: unknown stat operation <#{stat_ope.inspect}>"
           end
         end
       end
@@ -347,7 +347,7 @@ module Riser
             thread.kill
           end
         else
-          raise "internal error: unknown @stop_state(#{@stop_state.inspect})"
+          raise "internal error: unknown stop state <#{@stop_state.inspect}>"
         end
       ensure
         @postprocess.call
@@ -483,7 +483,7 @@ module Riser
           thread_dispatcher.accept{
             if (child_io.wait_readable(@process_send_io_polling_timeout_seconds) != nil) then
               command = child_io.read(5)
-              command == "SEND\n" or raise "internal error: unknown command: #{command}"
+              command == "SEND\n" or raise "internal error: unknown command <#{command.inspect}>"
               child_io.recv_io(socket_class)
             end
           }
@@ -556,7 +556,7 @@ module Riser
         process.io.write("SEND\n")
         process.io.send_io(socket)
         response = process.io.read(5)
-        response == "RADY\n" or raise "internal error: unknown response: #{response}"
+        response == "RADY\n" or raise "internal error: unknown response <#{response.inspect}>"
       }
       @process_dispatcher.start
 
