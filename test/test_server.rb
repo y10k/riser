@@ -241,7 +241,7 @@ module Riser::Test
 
     def test_server_hooks
       @server.at_fork{ @recorder.call('at_fork') } # should be ignored at multi-thread server
-      @server.at_stop{ @recorder.call('at_stop') }
+      @server.at_stop{|state| @recorder.call('at_stop') }
       @server.preprocess{ @recorder.call('preprocess') }
       @server.postprocess{ @recorder.call('postprocess') }
       @server.dispatch{|socket|
@@ -667,6 +667,7 @@ module Riser::Test
       server_polling_timeout_seconds = 0.001
       @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
       @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
       @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
 
       @server.at_stop{ @recorder.call('at_stop') }
@@ -710,6 +711,7 @@ module Riser::Test
       server_polling_timeout_seconds = 0.001
       @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
       @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
       @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
 
       @server.at_stop{ @recorder.call('at_stop') }
@@ -748,6 +750,7 @@ module Riser::Test
       server_polling_timeout_seconds = 0.001
       @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
       @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
       @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
 
       @server.dispatch{|socket|
@@ -786,6 +789,7 @@ module Riser::Test
       server_polling_timeout_seconds = 0.001
       @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
       @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
       @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
 
       @server.at_stat{|info|
@@ -848,6 +852,7 @@ module Riser::Test
       server_polling_timeout_seconds = 0.001
       @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
       @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
       @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
 
       @server.at_stat{|info|

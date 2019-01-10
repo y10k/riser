@@ -205,9 +205,12 @@ module Riser
       @thread_queue_polling_timeout_seconds = nil
       @at_stop = nil
       @at_stat = nil
+      @at_stat_get = nil
+      @at_stat_stop = nil
       @preprocess = nil
       @postprocess = nil
       @accept = nil
+      @accept_return = nil
       @dispatch = nil
       @stop_state = nil
       @stat_operation_queue = []
@@ -217,13 +220,24 @@ module Riser
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
 
-    def at_stop(&block)         # :yields:
+    def at_stop(&block)         # :yields: stop_state
       @at_stop = block
       nil
     end
 
     def at_stat(&block)         # :yields: stat_info
       @at_stat = block
+      nil
+    end
+
+    def at_stat_get(&block)     # :yields: reset
+      @at_stat_get = block
+      nil
+    end
+
+    def at_stat_stop(&block)    # :yields:
+      @at_stat_stop = block
+      nil
     end
 
     def preprocess(&block)      # :yields:
@@ -238,6 +252,11 @@ module Riser
 
     def accept(&block)          # :yields:
       @accept = block
+      nil
+    end
+
+    def accept_return(&block)   # :yields:
+      @accept_return = block
       nil
     end
 
@@ -282,11 +301,14 @@ module Riser
           when :get_and_reset
             queue.stat_start
             @at_stat.call(queue.stat_get(reset: true))
+            @at_stat_get.call(true)
           when :get
             queue.stat_start
             @at_stat.call(queue.stat_get(reset: false))
+            @at_stat_get.call(false)
           when :stop
             queue.stat_stop
+            @at_stat_stop.call
           else
             raise "internal error: unknown stat operation: #{stat_ope}"
           end
@@ -303,8 +325,9 @@ module Riser
         queue = TimeoutSizedQueue.new(@thread_queue_size, name: @thread_queue_name)
         begin
           thread_list = []
-          @thread_num.times do
+          @thread_num.times{|i|
             thread_list << Thread.new{
+              Thread.current[:number] = i
               while (socket = queue.pop)
                 begin
                   @dispatch.call(socket)
@@ -313,7 +336,7 @@ module Riser
                 end
               end
             }
-          end
+          }
 
           catch (:end_of_server) {
             while (true)
@@ -326,17 +349,19 @@ module Riser
               until (queue.push(socket, @thread_queue_polling_timeout_seconds))
                 if (@stop_state == :forced) then
                   socket.close
+                  @accept_return.call
                   throw(:end_of_server)
                 end
                 apply_signal_stat(queue)
               end
+              @accept_return.call
             end
           }
         ensure
           queue.close
         end
 
-        @at_stop.call
+        @at_stop.call(@stop_state)
         case (@stop_state)
         when :graceful
           for thread in thread_list
@@ -357,15 +382,18 @@ module Riser
     end
   end
 
-  SocketProcess = Struct.new(:pid, :io, :command_queue)
+  SocketProcess = Struct.new(:pid, :io)
 
   class SocketProcessDispatcher
+    NO_CALL = proc{}            # :nodoc:
+
     def initialize(process_queue_name, thread_queue_name)
       @accept_polling_timeout_seconds = nil
       @process_num = nil
       @process_queue_name = process_queue_name
       @process_queue_size = nil
       @process_queue_polling_timeout_seconds = nil
+      @process_send_io_polling_timeout_seconds = nil
       @thread_num = nil
       @thread_queue_name = thread_queue_name
       @thread_queue_size = nil
@@ -376,14 +404,14 @@ module Riser
       @preprocess = nil
       @postprocess = nil
       @dispatch = nil
-      @stop_state = nil
-      @stat_operation_queue = []
+      @process_dispatcher = nil
     end
 
     attr_accessor :accept_polling_timeout_seconds
     attr_accessor :process_num
     attr_accessor :process_queue_size
     attr_accessor :process_queue_polling_timeout_seconds
+    attr_accessor :process_send_io_polling_timeout_seconds
     attr_accessor :thread_num
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
@@ -393,7 +421,7 @@ module Riser
       nil
     end
 
-    def at_stop(&block)         # :yields:
+    def at_stop(&block)         # :yields: stop_state
       @at_stop = block
       nil
     end
@@ -420,67 +448,33 @@ module Riser
 
     # should be called from signal(2) handler
     def signal_stop_graceful
-      @stop_state ||= :graceful
+      @process_dispatcher.signal_stop_graceful if @process_dispatcher
       nil
     end
 
     # should be called from signal(2) handler
     def signal_stop_forced
-      @stop_state ||= :forced
+      @process_dispatcher.signal_stop_forced if @process_dispatcher
       nil
     end
 
     # should be called from signal(2) handler
     def signal_stat_get(reset: true)
-      if (reset) then
-        @stat_operation_queue << :get_and_reset
-      else
-        @stat_operation_queue << :get
-      end
-
+      @process_dispatcher.signal_stat_get(reset: reset) if @process_dispatcher
       nil
     end
 
     # should be called from signal(2) handler
     def signal_stat_stop
-      @stat_operation_queue << :stop
+      @process_dispatcher.signal_stat_stop if @process_dispatcher
       nil
     end
 
-    def apply_signal_stat(process_queue, process_list)
-      unless (@stat_operation_queue.empty?) then
-        while (stat_ope = @stat_operation_queue.shift)
-          case (stat_ope)
-          when :get_and_reset
-            process_queue.stat_start
-            @at_stat.call(process_queue.stat_get(reset: true))
-            for process in process_list
-              unless (process.command_queue.closed?) then
-                process.command_queue.push("STGR\n")
-              end
-            end
-          when :get
-            process_queue.stat_start
-            @at_stat.call(process_queue.stat_get(reset: false))
-            for process in process_list
-              unless (process.command_queue.closed?) then
-                process.command_queue.push("STGE\n")
-              end
-            end
-          when :stop
-            process_queue.stat_stop
-            for process in process_list
-              unless (process.command_queue.closed?) then
-                process.command_queue.push("STST\n")
-              end
-            end
-          else
-            raise "internal error: unknown stat operation: #{stat_ope}"
-          end
-        end
-      end
-    end
-    private :apply_signal_stat
+    SIGNAL_STOP_GRACEFUL      = 'TERM'
+    SIGNAL_STOP_FORCED        = 'QUIT'
+    SIGNAL_STAT_GET_AND_RESET = 'USR1'
+    SIGNAL_STAT_GET_NO_RESET  = 'USR2'
+    SIGNAL_STAT_STOP          = 'WINCH'
 
     def start(server_socket)
       case (server_socket)
@@ -506,31 +500,26 @@ module Riser
 
           thread_dispatcher.at_stop(&@at_stop)
           thread_dispatcher.at_stat(&@at_stat)
+          thread_dispatcher.at_stat_get(&NO_CALL)
+          thread_dispatcher.at_stat_stop(&NO_CALL)
           thread_dispatcher.preprocess(&@preprocess)
           thread_dispatcher.postprocess(&@postprocess)
 
           thread_dispatcher.accept{
-            child_io.write("RADY\n")
-            if (command = child_io.read(5)) then
-              case (command)
-              when "SEND\n"
-                child_io.recv_io(socket_class)
-              when "STGR\n"
-                thread_dispatcher.signal_stat_get(reset: true); nil
-              when "STGE\n"
-                thread_dispatcher.signal_stat_get(reset: false); nil
-              when "STST\n"
-                thread_dispatcher.signal_stat_stop; nil
-              when "STOG\n"
-                thread_dispatcher.signal_stop_graceful; nil
-              when "STOF\n"
-                thread_dispatcher.signal_stop_forced; nil
-              else
-                raise "internal error: unknown command: #{command}"
-              end
+            if (child_io.wait_readable(@process_send_io_polling_timeout_seconds) != nil) then
+              command = child_io.read(5)
+              command == "SEND\n" or raise "internal error: unknown command: #{command}"
+              child_io.recv_io(socket_class)
             end
           }
+          thread_dispatcher.accept_return{ child_io.write("RADY\n") }
           thread_dispatcher.dispatch(&@dispatch)
+
+          Signal.trap(SIGNAL_STOP_GRACEFUL) { thread_dispatcher.signal_stop_graceful }
+          Signal.trap(SIGNAL_STOP_FORCED) { thread_dispatcher.signal_stop_forced }
+          Signal.trap(SIGNAL_STAT_GET_AND_RESET) { thread_dispatcher.signal_stat_get(reset: true) }
+          Signal.trap(SIGNAL_STAT_GET_NO_RESET) { thread_dispatcher.signal_stat_get(reset: false) }
+          Signal.trap(SIGNAL_STAT_STOP) { thread_dispatcher.signal_stat_stop }
 
           begin
             @at_fork.call
@@ -541,83 +530,60 @@ module Riser
         }
         child_io.close
 
-        process_list << SocketProcess.new(pid, parent_io, Queue.new)
+        process_list << SocketProcess.new(pid, parent_io)
       end
 
-      process_queue = TimeoutSizedQueue.new(@process_queue_size, name: @process_queue_name)
-      thread_list = []
-      process_list.each{|process|
-        thread_list << Thread.new{
-          until (process_queue.at_end_of_queue?)
-            response = process.io.read(5) or break
-            response == "RADY\n" or raise "internal error: unknown response: #{response}"
-            unless (process.command_queue.empty?) then
-              process.io.write(process.command_queue.pop)
-            else
-              until (process_queue.at_end_of_queue?)
-                if (socket = process_queue.pop(@process_queue_polling_timeout_seconds)) then
-                  process.io.write("SEND\n")
-                  process.io.send_io(socket)
-                  socket.close
-                else
-                  unless (process.command_queue.empty?) then
-                    process.io.write(process.command_queue.pop)
-                    break
-                  end
-                end
-              end
-            end
+      @process_dispatcher = SocketThreadDispatcher.new(@process_queue_name)
+      @process_dispatcher.thread_num = @process_num
+      @process_dispatcher.thread_queue_size = @process_queue_size
+      @process_dispatcher.thread_queue_polling_timeout_seconds = @process_queue_polling_timeout_seconds
+
+      @process_dispatcher.at_stop{|state|
+        case (state)
+        when :graceful
+          for process in process_list
+            Process.kill(SIGNAL_STOP_GRACEFUL, process.pid)
           end
-
-          until (process.command_queue.empty?)
-            response = process.io.read(5) or break
-            response == "RADY\n" or raise "internal error: unknown response: #{response}"
-            process.io.write(process.command_queue.pop)
-          end
-        }
-      }
-
-      catch (:end_of_server) {
-        while (true)
-          begin
-            @stop_state and throw(:end_of_server)
-            apply_signal_stat(process_queue, process_list)
-            readable = server_socket.wait_readable(@accept_polling_timeout_seconds)
-          end while (readable.nil?)
-
-          socket = server_socket.accept
-          until (process_queue.push(socket, @process_queue_polling_timeout_seconds))
-            if (@stop_state == :forced) then
-              socket.close
-              throw(:end_of_server)
-            end
-            apply_signal_stat(process_queue, process_list)
+        when :forced
+          for process in process_list
+            Process.kill(SIGNAL_STOP_FORCED, process.pid)
           end
         end
       }
+      @process_dispatcher.at_stat(&@at_stat)
+      @process_dispatcher.at_stat_get{|reset|
+        if (reset) then
+          for process in process_list
+            Process.kill(SIGNAL_STAT_GET_AND_RESET, process.pid)
+          end
+        else
+          for process in process_list
+            Process.kill(SIGNAL_STAT_GET_NO_RESET, process.pid)
+          end
+        end
+      }
+      @process_dispatcher.at_stat_stop{
+        for process in process_list
+          Process.kill(SIGNAL_STAT_STOP, process.pid)
+        end
+      }
+      @process_dispatcher.preprocess(&NO_CALL)
+      @process_dispatcher.postprocess(&NO_CALL)
 
-      case (@stop_state)
-      when :graceful
-        for process in process_list
-          process.command_queue.push("STOG\n")
-          process.command_queue.close
+      @process_dispatcher.accept{
+        if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
+          server_socket.accept
         end
-        process_queue.close
-        for thread in thread_list
-          thread.join
-        end
-      when :forced
-        for process in process_list
-          process.command_queue.push("STOF\n")
-          process.command_queue.close
-        end
-        process_queue.close
-        for thread in thread_list
-          thread.join
-        end
-      else
-        raise "internal error: unknown @stop_state(#{@stop_state.inspect})"
-      end
+      }
+      @process_dispatcher.accept_return(&NO_CALL)
+      @process_dispatcher.dispatch{|socket|
+        process = process_list[Thread.current[:number]]
+        process.io.write("SEND\n")
+        process.io.send_io(socket)
+        response = process.io.read(5)
+        response == "RADY\n" or raise "internal error: unknown response: #{response}"
+      }
+      @process_dispatcher.start
 
       for process in process_list
         Process.wait(process.pid)
@@ -636,6 +602,7 @@ module Riser
       @process_num = 0
       @process_queue_size = 20
       @process_queue_polling_timeout_seconds = 0.1
+      @process_send_io_polling_timeout_seconds = 0.1
       @thread_num = 4
       @thread_queue_size = 20
       @thread_queue_polling_timeout_seconds = 0.1
@@ -652,6 +619,7 @@ module Riser
     attr_accessor :process_num
     attr_accessor :process_queue_size
     attr_accessor :process_queue_polling_timeout_seconds
+    attr_accessor :process_send_io_polling_timeout_seconds
     attr_accessor :thread_num
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
@@ -661,7 +629,7 @@ module Riser
       nil
     end
 
-    def at_stop(&block)         # :yields:
+    def at_stop(&block)         # :yields: stop_state
       @at_stop = block
       nil
     end
@@ -719,6 +687,7 @@ module Riser
         @dispatcher.process_num = @process_num
         @dispatcher.process_queue_size = @process_queue_size
         @dispatcher.process_queue_polling_timeout_seconds = @process_queue_polling_timeout_seconds
+        @dispatcher.process_send_io_polling_timeout_seconds = @process_send_io_polling_timeout_seconds
         @dispatcher.thread_num = @thread_num
         @dispatcher.thread_queue_size = @thread_queue_size
         @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
@@ -738,6 +707,8 @@ module Riser
 
         @dispatcher.at_stop(&@at_stop)
         @dispatcher.at_stat(&@at_stat)
+        @dispatcher.at_stat_get(&NO_CALL)
+        @dispatcher.at_stat_stop(&NO_CALL)
         @dispatcher.preprocess(&@preprocess)
         @dispatcher.postprocess(&@postprocess)
         @dispatcher.accept{
@@ -745,6 +716,7 @@ module Riser
             server_socket.accept
           end
         }
+        @dispatcher.accept_return(&NO_CALL)
         @dispatcher.dispatch(&@dispatch)
         @dispatcher.start
       end
