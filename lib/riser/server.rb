@@ -67,20 +67,40 @@ module Riser
       }
     end
 
-    def pop
-      @mutex.synchronize{
-        if (@stat_enable) then
-          @stat_pop_count += 1
-          @stat_pop_average_queue_size = (@stat_pop_average_queue_size * (@stat_pop_count - 1) + @queue.size) / @stat_pop_count
-        end
-        while (@queue.empty?)
-          @closed and return
-          @stat_pop_wait_count += 1 if @stat_enable
-          @pop_cond.wait(@mutex)
-        end
-        @push_cond.signal
-        @queue.shift
-      }
+    def pop(timeout_seconds=0)
+      if (timeout_seconds > 0) then
+        @mutex.synchronize{
+          if (@stat_enable) then
+            @stat_pop_count += 1
+            @stat_pop_average_queue_size = (@stat_pop_average_queue_size * (@stat_pop_count - 1) + @queue.size) / @stat_pop_count
+          end
+          if (@queue.empty?) then
+            @closed and return
+            @stat_pop_wait_count += 1 if @stat_enable
+            @pop_cond.wait(@mutex, timeout_seconds)
+            if (@queue.empty?) then
+              @stat_pop_timeout_count += 1 if @stat_enable
+              return
+            end
+          end
+          @push_cond.signal
+          @queue.shift
+        }
+      else
+        @mutex.synchronize{
+          if (@stat_enable) then
+            @stat_pop_count += 1
+            @stat_pop_average_queue_size = (@stat_pop_average_queue_size * (@stat_pop_count - 1) + @queue.size) / @stat_pop_count
+          end
+          while (@queue.empty?)
+            @closed and return
+            @stat_pop_wait_count += 1 if @stat_enable
+            @pop_cond.wait(@mutex)
+          end
+          @push_cond.signal
+          @queue.shift
+        }
+      end
     end
 
     def stat_reset_no_lock
@@ -92,6 +112,7 @@ module Riser
       @stat_pop_average_queue_size  = 0.0
       @stat_pop_count               = 0
       @stat_pop_wait_count          = 0
+      @stat_pop_timeout_count       = 0
     end
     private :stat_reset_no_lock
 
@@ -130,7 +151,8 @@ module Riser
             push_timeout_count:      @stat_push_timeout_count,
             pop_average_queue_size:  @stat_pop_average_queue_size,
             pop_count:               @stat_pop_count,
-            pop_wait_count:          @stat_pop_wait_count
+            pop_wait_count:          @stat_pop_wait_count,
+            pop_timeout_count:       @stat_pop_timeout_count
           }
 
           if (reset) then
@@ -143,6 +165,7 @@ module Riser
         info[:push_wait_ratio]    = info[:push_wait_count].to_f    / info[:push_count]
         info[:push_timeout_ratio] = info[:push_timeout_count].to_f / info[:push_count]
         info[:pop_wait_ratio]     = info[:pop_wait_count].to_f     / info[:pop_count]
+        info[:pop_timeout_ratio]  = info[:pop_timeout_count].to_f  / info[:pop_count]
 
         # sort
         [ :queue_name,
@@ -160,7 +183,9 @@ module Riser
           :pop_average_queue_size,
           :pop_count,
           :pop_wait_count,
-          :pop_wait_ratio
+          :pop_wait_ratio,
+          :pop_timeout_count,
+          :pop_timeout_ratio
         ].each do |name|
           info[name] = info.delete(name)
         end
