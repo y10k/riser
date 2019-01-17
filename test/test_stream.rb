@@ -37,6 +37,29 @@ module Riser::Test
       assert_nil(@stream.read(5))
     end
 
+    def test_readpartial
+      read_io, write_io = IO.pipe
+      begin
+        @stream = Riser::Stream.new(read_io)
+        @stream = Riser::Stream.new(@stream) # nested stream
+        @stream = Riser::Stream.new(@stream) # nested-nested stream
+
+        write_io << 'foo'
+        assert_equal('foo', @stream.readpartial(1024))
+
+        write_io << 'bar'
+        s = ''
+        assert_equal('bar', @stream.readpartial(1024, s))
+        assert_equal('bar', s)
+
+        write_io.close
+        assert_raise(EOFError) { @stream.readpartial(1024) }
+      ensure
+        read_io.close unless read_io.closed?
+        write_io.close unless write_io.closed?
+      end
+    end
+
     def test_write
       make_string_stream
       @stream.write('Hello ')
@@ -152,6 +175,27 @@ module Riser::Test
       assert_match(/r "12345"/, @log.string)
       assert_match(/r "67"/, @log.string)
       assert_match(/r nil/, @log.string)
+    end
+
+    def test_readpartial
+      read_io, write_io = IO.pipe
+      begin
+        @log = StringIO.new
+        @stream = Riser::LoggingStream.new(Riser::Stream.new(read_io), Logger.new(@log)) # nested stream for restricted I/O check
+
+        write_io << 'foo'
+        assert_equal('foo', @stream.readpartial(1024))
+        assert_match(/r "foo"/, @log.string)
+        assert_not_match(/r "bar"/, @log.string)
+
+        write_io << 'bar'
+        assert_equal('bar', @stream.readpartial(1024))
+        assert_match(/r "foo"/, @log.string)
+        assert_match(/r "bar"/, @log.string)
+      ensure
+        read_io.close unless read_io.closed?
+        write_io.close unless write_io.closed?
+      end
     end
 
     def test_write

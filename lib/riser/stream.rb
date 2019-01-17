@@ -19,6 +19,10 @@ module Riser
       @io.read(size)
     end
 
+    def readpartial(maxlen, outbuf=nil)
+      @io.readpartial(maxlen, outbuf)
+    end
+
     def write(message)
       @io.write(message)
     end
@@ -83,6 +87,12 @@ module Riser
     end
 
     def read(size)
+      data = super
+      @logger.info("r #{data.inspect}")
+      data
+    end
+
+    def readpartial(maxlen, outbuf=nil)
       data = super
       @logger.info("r #{data.inspect}")
       data
