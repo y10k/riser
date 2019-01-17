@@ -5,8 +5,8 @@ require 'logger'
 require 'riser'
 require 'socket'
 
-host = ARGV.shift || 'localhost'
-port = Integer(ARGV.shift || '50000')
+socket_config = ARGV.shift || 'localhost:50000'
+socket_address = Riser::SocketAddress.parse(socket_config)
 
 server = Riser::SocketServer.new
 server.process_num = 4
@@ -51,8 +51,7 @@ server.dispatch{|socket|
   end
 }
 
-socket = TCPServer.new(host, port)
-server.start(socket)
+server.start(socket_address.open_server)
 
 # Local Variables:
 # mode: Ruby

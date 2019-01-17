@@ -7,8 +7,8 @@ require 'riser'
 require 'socket'
 require 'time'
 
-host = ARGV.shift || 'localhost'
-port = Integer(ARGV.shift || '8080')
+socket_config = ARGV.shift || 'localhost:8080'
+socket_address = Riser::SocketAddress.parse(socket_config)
 
 server = Riser::SocketServer.new
 server.process_num = 4
@@ -89,8 +89,7 @@ server.dispatch{|socket|
   end
 }
 
-socket = TCPServer.new(host, port)
-server.start(socket)
+server.start(socket_address.open_server)
 
 # Local Variables:
 # mode: Ruby
