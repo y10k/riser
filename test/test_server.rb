@@ -285,7 +285,7 @@ module Riser::Test
     def test_server_simple_request_response
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -308,7 +308,7 @@ module Riser::Test
     def test_server_many_request_response
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -339,7 +339,7 @@ module Riser::Test
       @server.after_stop{ @recorder.call('after_stop') }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -454,7 +454,7 @@ module Riser::Test
 
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -495,7 +495,7 @@ module Riser::Test
       }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -553,7 +553,7 @@ module Riser::Test
       }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -678,7 +678,7 @@ module Riser::Test
     def test_server_simple_request_response
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -701,7 +701,7 @@ module Riser::Test
     def test_server_many_request_response
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -732,7 +732,7 @@ module Riser::Test
       @server.after_stop{ @recorder.call('after_stop') }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -854,7 +854,7 @@ module Riser::Test
 
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -897,7 +897,7 @@ module Riser::Test
       }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets)then
           @recorder.call('request-response')
           socket.write(line)
         end
@@ -960,7 +960,7 @@ module Riser::Test
       }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
-        if (line = socket.gets)
+        if (line = socket.gets) then
           @recorder.call('request-response')
           socket.write(line)
         end
