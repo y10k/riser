@@ -331,10 +331,12 @@ module Riser::Test
     end
 
     def test_server_hooks
+      @server.before_start{|server_socket| @recorder.call('before_start') }
       @server.at_fork{ @recorder.call('at_fork') } # should be ignored at multi-thread server
       @server.at_stop{|state| @recorder.call('at_stop') }
       @server.preprocess{ @recorder.call('preprocess') }
       @server.postprocess{ @recorder.call('postprocess') }
+      @server.after_stop{ @recorder.call('after_stop') }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
         if (line = socket.gets)
@@ -356,11 +358,13 @@ module Riser::Test
       kill_and_wait(SIGNAL_STOP_GRACEFUL, server_pid)
 
       assert_equal(%w[
+                     before_start
                      preprocess
                      dispatch
                      request-response
                      at_stop
                      postprocess
+                     after_stop
                    ], @recorder.get_file_records)
     end
 
@@ -720,10 +724,12 @@ module Riser::Test
     end
 
     def test_server_hooks
+      @server.before_start{|server_socket| @recorder.call('before_start') }
       @server.at_fork{ @recorder.call('at_fork') }
       @server.at_stop{ @recorder.call('at_stop') }
       @server.preprocess{ @recorder.call('preprocess') }
       @server.postprocess{ @recorder.call('postprocess') }
+      @server.after_stop{ @recorder.call('after_stop') }
       @server.dispatch{|socket|
         @recorder.call('dispatch')
         if (line = socket.gets)
@@ -745,12 +751,14 @@ module Riser::Test
       kill_and_wait(SIGNAL_STOP_GRACEFUL, server_pid)
 
       assert_equal(%w[
+                     before_start
                      at_fork
                      preprocess
                      dispatch
                      request-response
                      at_stop
                      postprocess
+                     after_stop
                    ], @recorder.get_file_records)
     end
 

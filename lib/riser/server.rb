@@ -689,11 +689,13 @@ module Riser
       @thread_num = 4
       @thread_queue_size = 20
       @thread_queue_polling_timeout_seconds = 0.1
+      @before_start = NO_CALL
       @at_fork = NO_CALL
       @at_stop = NO_CALL
       @at_stat = NO_CALL
       @preprocess = NO_CALL
       @postprocess = NO_CALL
+      @after_stop = NO_CALL
       @dispatch = nil
       @dispatcher = nil
     end
@@ -706,6 +708,11 @@ module Riser
     attr_accessor :thread_num
     attr_accessor :thread_queue_size
     attr_accessor :thread_queue_polling_timeout_seconds
+
+    def before_start(&block)    # :yields: server_socket
+      @before_start = block
+      nil
+    end
 
     def at_fork(&block)         # :yields:
       @at_fork = block
@@ -729,6 +736,11 @@ module Riser
 
     def postprocess(&block)     # :yields:
       @postprocess = block
+      nil
+    end
+
+    def after_stop(&block)      # :yields:
+      @after_stop = block
       nil
     end
 
@@ -781,7 +793,13 @@ module Riser
         @dispatcher.preprocess(&@preprocess)
         @dispatcher.postprocess(&@postprocess)
         @dispatcher.dispatch(&@dispatch)
-        @dispatcher.start(server_socket)
+
+        @before_start.call(server_socket)
+        begin
+          @dispatcher.start(server_socket)
+        ensure
+          @after_stop.call
+        end
       else
         @dispatcher = SocketThreadDispatcher.new('thread_queue')
         @dispatcher.thread_num = @thread_num
@@ -801,7 +819,13 @@ module Riser
         }
         @dispatcher.accept_return(&NO_CALL)
         @dispatcher.dispatch(&@dispatch)
-        @dispatcher.start
+
+        @before_start.call(server_socket)
+        begin
+          @dispatcher.start
+        ensure
+          @after_stop.call
+        end
       end
 
       nil
