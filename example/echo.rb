@@ -18,11 +18,16 @@ Signal.trap('USR1') { server.signal_stat_get(reset: true) }
 Signal.trap('USR2') { server.signal_stat_get(reset: false) }
 Signal.trap('WINCH') { server.signal_stat_stop }
 
+server.before_start{|server_socket|
+  puts "before start (pid: #{Process.pid})"
+  puts "listen #{server_socket.local_address.inspect_sockaddr}"
+}
 server.at_fork{ puts "fork: #{Process.ppid} -> #{Process.pid}" }
 server.at_stop{|state| puts "stop: #{state} (pid: #{Process.pid})" }
 server.at_stat{|info| puts info.pretty_inspect }
 server.preprocess{ puts "preprocess (pid: #{Process.pid})" }
 server.postprocess{ puts "postprocess (pid: #{Process.pid})" }
+server.after_stop{ puts "after stop (pid: #{Process.pid})" }
 
 stdout_log = Logger.new(STDOUT)
 
@@ -32,6 +37,7 @@ server.dispatch{|socket|
     stream = Riser::WriteBufferStream.new(socket)
     stream = Riser::LoggingStream.new(stream, stdout_log)
 
+    stdout_log.info("connect from #{socket.remote_address.inspect_sockaddr}")
     catch(:end_of_connection) {
       while (true)
         until (read_poll.call(1))
