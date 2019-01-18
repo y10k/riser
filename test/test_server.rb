@@ -262,7 +262,7 @@ module Riser::Test
         rescue Errno::ESRCH, Errno::EPERM
           # nothing to do
         else
-          kill_and_wait('TERM', @pid)
+          kill_and_wait(SIGNAL_STOP_GRACEFUL, @pid)
         end
       end
 
