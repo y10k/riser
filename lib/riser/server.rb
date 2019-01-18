@@ -269,6 +269,8 @@ module Riser
     SIGNAL_STAT_GET_AND_RESET = :USR1
     SIGNAL_STAT_GET_NO_RESET  = :USR2
     SIGNAL_STAT_STOP          = :WINCH
+    SIGNAL_RESTART_GRACEFUL   = :HUP
+    SIGNAL_RESTART_FORCED     = :INT
   end
 
   class UNIXSocketAddress < SocketAddress
