@@ -201,13 +201,14 @@ module Riser
     end
 
     def self.parse(config)
+      unsquare = proc{|s| s.sub(/\A \[/x, '').sub(/\] \z/x, '') }
       case (config)
       when String
         case (config)
         when /\A tcp:/x
           uri = URI(config)
           if (uri.host && uri.port) then
-            return TCPSocketAddress.new(uri.host, uri.port)
+            return TCPSocketAddress.new(unsquare.call(uri.host), uri.port)
           end
         when /\A unix:/x
           uri = URI(config)
@@ -219,7 +220,7 @@ module Riser
         when /\A (\S+):(\d+) \z/x
           host = $1
           port = $2.to_i
-          return TCPSocketAddress.new(host, port)
+          return TCPSocketAddress.new(unsquare.call(host), port)
         end
       when Hash
         if (type = config[:type] || config['type']) then
@@ -228,7 +229,7 @@ module Riser
             host = config[:host] || config['host']
             port = config[:port] || config['port']
             if (host && (host.is_a? String) && port && (port.is_a? Integer)) then
-              return TCPSocketAddress.new(host, port)
+              return TCPSocketAddress.new(unsquare.call(host), port)
             end
           when 'unix'
             path = config[:path] || config['path']

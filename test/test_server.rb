@@ -132,6 +132,21 @@ module Riser::Test
       assert_equal([ :tcp, 'example', 80 ], addr.to_a)
     end
 
+    data('host:port'              => '[::1]:80',
+         'tcp://host:port'        => 'tcp://[::1]:80',
+         'Hash:Symbol'            => { type: :tcp, host: '::1', port: 80 },
+         'Hash:Symbol_SquareHost' => { type: :tcp, host: '[::1]', port: 80 },
+         'Hash:String'            => { 'type' => 'tcp', 'host' => '::1', 'port' => 80 },
+         'Hash:String_SquareHost' => { 'type' => 'tcp', 'host' => '[::1]', 'port' => 80 })
+    def test_parse_tcp_socket_address_ipv6(config)
+      addr = Riser::SocketAddress.parse(config)
+      assert_instance_of(Riser::TCPSocketAddress, addr)
+      assert_equal(:tcp, addr.type)
+      assert_equal('::1', addr.host)
+      assert_equal(80, addr.port)
+      assert_equal([ :tcp, '::1', 80 ], addr.to_a)
+    end
+
     data('unix:/path'  => 'unix:/tmp/unix_socket',
          'Hash:Symbol' => { type: :unix, path: '/tmp/unix_socket' },
          'Hash:String' => { 'type' => 'unix', 'path' => '/tmp/unix_socket' })
