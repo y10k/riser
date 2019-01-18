@@ -787,7 +787,10 @@ module Riser
         @dispatcher.thread_queue_size = @thread_queue_size
         @dispatcher.thread_queue_polling_timeout_seconds = @thread_queue_polling_timeout_seconds
 
-        @dispatcher.at_fork(&@at_fork)
+        @dispatcher.at_fork{
+          server_socket.close
+          @at_fork.call
+        }
         @dispatcher.at_stop(&@at_stop)
         @dispatcher.at_stat(&@at_stat)
         @dispatcher.preprocess(&@preprocess)
