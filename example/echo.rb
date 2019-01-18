@@ -4,6 +4,31 @@
 require 'logger'
 require 'riser'
 require 'socket'
+require 'thread'
+
+class ConnectionLimits
+  def initialize(max_count, request_timeout_seconds)
+    @mutex = Mutex.new
+    self.max_count = max_count
+    self.request_timeout_seconds = request_timeout_seconds
+  end
+
+  def max_count
+    @mutex.synchronize{ @max_count }
+  end
+
+  def max_count=(value)
+    @mutex.synchronize{ @max_count = value }
+  end
+
+  def request_timeout_seconds
+    @mutex.synchronize{ @request_timeout_seconds }
+  end
+
+  def request_timeout_seconds=(value)
+    @mutex.synchronize{ @request_timeout_seconds = value }
+  end
+end
 
 socket_config = ARGV.shift || 'localhost:50000'
 socket_address = Riser::SocketAddress.parse(socket_config)
@@ -18,12 +43,17 @@ Signal.trap('USR1') { server.signal_stat_get(reset: true) }
 Signal.trap('USR2') { server.signal_stat_get(reset: false) }
 Signal.trap('WINCH') { server.signal_stat_stop }
 
+conn_limits = ConnectionLimits.new(100, 10)
 server.before_start{|server_socket|
   puts "before start (pid: #{Process.pid})"
   puts "listen #{server_socket.local_address.inspect_sockaddr}"
 }
 server.at_fork{ puts "fork: #{Process.ppid} -> #{Process.pid}" }
-server.at_stop{|state| puts "stop: #{state} (pid: #{Process.pid})" }
+server.at_stop{|state|
+  puts "stop: #{state} (pid: #{Process.pid})"
+  conn_limits.max_count = 1
+  conn_limits.request_timeout_seconds = 0
+}
 server.at_stat{|info| puts info.pretty_inspect }
 server.preprocess{ puts "preprocess (pid: #{Process.pid})" }
 server.postprocess{ puts "postprocess (pid: #{Process.pid})" }
@@ -39,9 +69,12 @@ server.dispatch{|socket|
 
     stdout_log.info("connect from #{socket.remote_address.inspect_sockaddr}")
     catch(:end_of_connection) {
-      while (true)
+      count = 0
+      while (count < conn_limits.max_count)
+        count += 1
+
         until (read_poll.call(1))
-          if (read_poll.interval_seconds >= 10) then
+          if (read_poll.interval_seconds >= conn_limits.request_timeout_seconds) then
             throw(:end_of_connection)
           end
         end
