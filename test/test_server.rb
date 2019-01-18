@@ -210,6 +210,7 @@ module Riser::Test
   end
 
   class MultiThreadSocketServerTest < Test::Unit::TestCase
+    include Riser::ServerSignal
     include Timeout
 
     def setup
@@ -221,17 +222,11 @@ module Riser::Test
       @recorder = CallRecorder.new(@store_path)
     end
 
-    SIGNAL_STOP_GRACEFUL     = 'QUIT'
-    SIGNAL_STOP_FORCED       = 'INT'
-    SIGNAL_STAT_GET_RESET    = 'USR1'
-    SIGNAL_STAT_GET_NO_RESET = 'WINCH'
-    SIGNAL_STAT_STOP         = 'USR2'
-
     def start_server
       @pid = fork{
         Signal.trap(SIGNAL_STOP_GRACEFUL) { @server.signal_stop_graceful }
         Signal.trap(SIGNAL_STOP_FORCED) { @server.signal_stop_forced }
-        Signal.trap(SIGNAL_STAT_GET_RESET) { @server.signal_stat_get }
+        Signal.trap(SIGNAL_STAT_GET_AND_RESET) { @server.signal_stat_get }
         Signal.trap(SIGNAL_STAT_GET_NO_RESET) { @server.signal_stat_get(reset: false) }
         Signal.trap(SIGNAL_STAT_STOP) { @server.signal_stat_stop }
         FileUtils.touch(@server_start_wait_path)
@@ -463,7 +458,7 @@ module Riser::Test
       server_pid = start_server
       sleep(server_polling_timeout_seconds * 10)
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
       s = connect_server
@@ -504,7 +499,7 @@ module Riser::Test
       server_pid = start_server
       sleep(server_polling_timeout_seconds * 10)
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
       s = connect_server
@@ -516,7 +511,7 @@ module Riser::Test
         s.close
       end
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
       s = connect_server
@@ -528,7 +523,7 @@ module Riser::Test
         s.close
       end
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
       assert_equal(%w[
@@ -602,6 +597,7 @@ module Riser::Test
   end
 
   class MultiProcessSocketServerTest < Test::Unit::TestCase
+    include Riser::ServerSignal
     include Timeout
 
     def setup
@@ -614,17 +610,11 @@ module Riser::Test
       @recorder = CallRecorder.new(@store_path)
     end
 
-    SIGNAL_STOP_GRACEFUL     = 'TERM'
-    SIGNAL_STOP_FORCED       = 'QUIT'
-    SIGNAL_STAT_GET_RESET    = 'USR1'
-    SIGNAL_STAT_GET_NO_RESET = 'WINCH'
-    SIGNAL_STAT_STOP         = 'USR2'
-
     def start_server
       @pid = fork{
         Signal.trap(SIGNAL_STOP_GRACEFUL) { @server.signal_stop_graceful }
         Signal.trap(SIGNAL_STOP_FORCED) { @server.signal_stop_forced }
-        Signal.trap(SIGNAL_STAT_GET_RESET) { @server.signal_stat_get }
+        Signal.trap(SIGNAL_STAT_GET_AND_RESET) { @server.signal_stat_get }
         Signal.trap(SIGNAL_STAT_GET_NO_RESET) { @server.signal_stat_get(reset: false) }
         Signal.trap(SIGNAL_STAT_STOP) { @server.signal_stat_stop }
         FileUtils.touch(@server_start_wait_path)
@@ -863,7 +853,7 @@ module Riser::Test
       server_pid = start_server
       sleep(server_polling_timeout_seconds * 20)
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
       s = connect_server
@@ -906,7 +896,7 @@ module Riser::Test
       server_pid = start_server
       sleep(server_polling_timeout_seconds * 20)
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
       s = connect_server
@@ -918,7 +908,7 @@ module Riser::Test
         s.close
       end
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
       s = connect_server
@@ -930,7 +920,7 @@ module Riser::Test
         s.close
       end
 
-      Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
+      Process.kill(SIGNAL_STAT_GET_AND_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
       assert_equal(%w[

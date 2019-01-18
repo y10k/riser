@@ -8,6 +8,7 @@ module Riser
   autoload :DRbServices, 'riser/services'
   autoload :LoggingStream, 'riser/stream'
   autoload :ReadPoll, 'riser/poll'
+  autoload :ServerSignal, 'riser/server'
   autoload :SocketAddress, 'riser/server'
   autoload :SocketServer, 'riser/server'
   autoload :Stream, 'riser/stream'

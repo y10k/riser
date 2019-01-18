@@ -263,6 +263,14 @@ module Riser
     end
   end
 
+  module ServerSignal
+    SIGNAL_STOP_GRACEFUL      = :TERM
+    SIGNAL_STOP_FORCED        = :QUIT
+    SIGNAL_STAT_GET_AND_RESET = :USR1
+    SIGNAL_STAT_GET_NO_RESET  = :USR2
+    SIGNAL_STAT_STOP          = :WINCH
+  end
+
   class UNIXSocketAddress < SocketAddress
     def initialize(path)
       super(:unix)
@@ -468,6 +476,8 @@ module Riser
   SocketProcess = Struct.new(:pid, :io)
 
   class SocketProcessDispatcher
+    include ServerSignal
+
     NO_CALL = proc{}            # :nodoc:
 
     def initialize(process_queue_name, thread_queue_name)
@@ -552,12 +562,6 @@ module Riser
       @process_dispatcher.signal_stat_stop if @process_dispatcher
       nil
     end
-
-    SIGNAL_STOP_GRACEFUL      = 'TERM'
-    SIGNAL_STOP_FORCED        = 'QUIT'
-    SIGNAL_STAT_GET_AND_RESET = 'USR1'
-    SIGNAL_STAT_GET_NO_RESET  = 'USR2'
-    SIGNAL_STAT_STOP          = 'WINCH'
 
     def start(server_socket)
       case (server_socket)
