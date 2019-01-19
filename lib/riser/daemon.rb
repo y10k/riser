@@ -86,17 +86,6 @@ module Riser
       nil
     end
 
-    def get_server_socket(server_address)
-      begin
-        server_address.open_server
-      rescue
-        @logger.error("failed to open server socket: #{server_address.inspect} [#{$!}]")
-        @logger.debug($!) if @logger.debug?
-        nil
-      end
-    end
-    private :get_server_socket
-
     def server_send_signal(pid, signal, error_message)
       begin
         Process.kill(signal, pid)
@@ -205,7 +194,7 @@ module Riser
         return 1
       end
 
-      unless (server_socket = get_server_socket(server_address)) then
+      unless (server_socket = @sysop.get_server_socket(server_address)) then
         @logger.fatal('failed to start daemon.')
         return 1
       end
@@ -237,7 +226,7 @@ module Riser
             when :restart_graceful, :restart_forced
               if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
                 if (next_server_address != server_address) then
-                  if (next_server_socket = get_server_socket(next_server_address)) then
+                  if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
                     begin
                       @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
