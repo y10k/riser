@@ -31,6 +31,7 @@ module Riser
       @sockaddr_get = sockaddr_get
       @server_watch_interval_seconds = server_watch_interval_seconds
       @server_setup = block
+      @sysop = SystemOperation.new(@logger)
       @stop_state = nil
       @signal_operation_queue = []
     end
@@ -74,23 +75,6 @@ module Riser
       @signal_operation_queue << :stat_stop
       nil
     end
-
-    def get_server_address
-      begin
-        address_config = @sockaddr_get.call
-      rescue
-        @logger.error("failed to get server address [#{$!}]")
-        @logger.debug($!) if @logger.debug?
-        return
-      end
-
-      server_address = SocketAddress.parse(address_config)
-      unless (server_address) then
-        @logger.error("failed to parse server address: #{address_config.inspect}")
-      end
-      server_address
-    end
-    private :get_server_address
 
     def get_server_socket(server_address)
       begin
@@ -206,7 +190,7 @@ module Riser
     def start
       @logger.info('daemon start.')
 
-      unless (server_address = get_server_address) then
+      unless (server_address = @sysop.get_server_address(@sockaddr_get)) then
         @logger.fatal('failed to start daemon.')
         return 1
       end
@@ -241,7 +225,7 @@ module Riser
           while (sig_ope = @signal_operation_queue.shift)
             case (sig_ope)
             when :restart_graceful, :restart_forced
-              if (next_server_address = get_server_address) then
+              if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
                 if (next_server_address != server_address) then
                   if (next_server_socket = get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
