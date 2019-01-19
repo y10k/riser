@@ -456,6 +456,28 @@ module Riser::Test
       assert_equal(%w[ stat stat ], @recorder.get_file_records)
     end
   end
+
+  class RootProcessSystemOperationTest < Test::Unit::TestCase
+    def setup
+      @logger = Logger.new(STDOUT)
+      def @logger.close         # not close STDOUT
+      end
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL.succ
+      @sysop = Riser::RootProcess::SystemOperation.new(@logger)
+    end
+
+    def test_get_server_address
+      assert_equal(Riser::TCPSocketAddress.new('example', 80), @sysop.get_server_address(proc{ 'example:80' }))
+    end
+
+    def test_get_server_address_fail_get_address
+      assert_nil(@sysop.get_server_address(proc{ raise 'abort' }))
+    end
+
+    def test_get_server_address_fail_parse_address
+      assert_nil(@sysop.get_server_address(proc{ nil }))
+    end
+  end
 end
 
 # Local Variables:

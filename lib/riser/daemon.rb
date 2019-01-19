@@ -2,6 +2,28 @@
 
 module Riser
   class RootProcess
+    class SystemOperation
+      def initialize(logger)
+        @logger = logger
+      end
+
+      def get_server_address(sockaddr_get)
+        begin
+          address_config = sockaddr_get.call
+        rescue
+          @logger.error("failed to get server address [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          return
+        end
+
+        server_address = SocketAddress.parse(address_config)
+        unless (server_address) then
+          @logger.error("failed to parse server address: #{address_config.inspect}")
+        end
+        server_address
+      end
+    end
+
     include ServerSignal
 
     def initialize(logger, sockaddr_get, server_watch_interval_seconds, &block)
