@@ -477,6 +477,34 @@ module Riser::Test
     def test_get_server_address_fail_parse_address
       assert_nil(@sysop.get_server_address(proc{ nil }))
     end
+
+    def test_get_server_socket
+      unix_addr = Riser::UNIXSocketAddress.new(Riser::TemporaryPath.make_unix_socket_path)
+      begin
+        s = @sysop.get_server_socket(unix_addr)
+        begin
+          assert_instance_of(UNIXServer, s)
+        ensure
+          s.close
+        end
+      ensure
+        FileUtils.rm_f(unix_addr.path)
+      end
+    end
+
+    def test_get_server_socket_fail_socket_open
+      unix_addr = Riser::UNIXSocketAddress.new(Riser::TemporaryPath.make_unix_socket_path)
+      begin
+        s = unix_addr.open_server
+        begin
+          assert_nil(@sysop.get_server_socket(unix_addr))
+        ensure
+          s.close
+        end
+      ensure
+        FileUtils.rm_f(unix_addr.path)
+      end
+    end
   end
 end
 

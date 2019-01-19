@@ -22,6 +22,16 @@ module Riser
         end
         server_address
       end
+
+      def get_server_socket(server_address)
+        begin
+          server_address.open_server
+        rescue
+          @logger.error("failed to open server socket: #{server_address.inspect} [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
     end
 
     include ServerSignal
