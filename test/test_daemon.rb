@@ -505,6 +505,20 @@ module Riser::Test
         FileUtils.rm_f(unix_addr.path)
       end
     end
+
+    def test_send_signal
+      assert_equal(1, @sysop.send_signal($$, 0))
+    end
+
+    def test_send_signal_fail
+      m_process = Object.new
+      def m_process.kill(signal, pid)
+        raise 'abort'
+      end
+
+      @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
+      assert_nil(@sysop.send_signal($$, 0))
+    end
   end
 end
 

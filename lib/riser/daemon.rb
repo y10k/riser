@@ -3,8 +3,9 @@
 module Riser
   class RootProcess
     class SystemOperation
-      def initialize(logger)
+      def initialize(logger, module_Process: Process)
         @logger = logger
+        @Process = module_Process
       end
 
       def get_server_address(sockaddr_get)
@@ -28,6 +29,16 @@ module Riser
           server_address.open_server
         rescue
           @logger.error("failed to open server socket: #{server_address.inspect} [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
+      def send_signal(pid, signal)
+        begin
+          @Process.kill(signal, pid)
+        rescue
+          @logger.error("failed to send signal (#{signal}) to process (pid: #{pid}) [#{$!}]")
           @logger.debug($!) if @logger.debug?
           nil
         end
