@@ -181,21 +181,15 @@ module Riser
         server.start(server_socket)
       }
       unless (pid) then
-        for io in [ latch_read_io, latch_write_io ]
-          begin
-            io.close
-          rescue
-            @logger.error("failed to close pipe(2) [#{$!}]")
-            @logger.debug($!) if @logger.debug?
-          end
-        end
+        @sysop.close(latch_read_io)
+        @sysop.close(latch_write_io)
         @logger.error('failed to start server')
         return
       end
 
       begin
         begin
-          latch_write_io.close
+          @sysop.close(latch_write_io)
           if (s = latch_read_io.gets) then
             @logger.debug("[server process message] #{s.chomp}") if @logger.debug?
           else
@@ -205,7 +199,7 @@ module Riser
             return
           end
         ensure
-          latch_read_io.close
+          @sysop.close(latch_read_io)
         end
       rescue
         @logger.error("unexpected error [#{$!}]")
@@ -266,13 +260,8 @@ module Riser
                 if (next_server_address != server_address) then
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
-                    begin
-                      @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
-                      server_socket.close
-                    rescue
-                      @logger.warn("failed to close server socket (#{server_address.inspect}) [#{$!}]")
-                      @logger.debug($!) if @logger.debug?
-                    end
+                    @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
+                    @sysop.close(server_socket) or @logger.warn("failed to close server socket (#{server_address.inspect})")
                     server_socket = next_server_socket
                     server_address = next_server_address
                   else
