@@ -97,24 +97,21 @@ module Riser
       nil
     end
 
-    def server_send_signal(pid, signal, error_message)
-      begin
-        Process.kill(signal, pid)
-      rescue
-        @logger.error("#{error_message} [#{$!}]")
-        @logger.debug($!) if @logger.debug?
-        nil
-      end
-    end
-    private :server_send_signal
-
     def server_stop_graceful(pid)
-      server_send_signal(pid, SIGNAL_STOP_GRACEFUL, "server graceful stop error (pid: #{pid})")
+      ret_val = @sysop.send_signal(pid, SIGNAL_STOP_GRACEFUL)
+      unless (ret_val) then
+        @logger.error("server graceful stop error (pid: #{pid})")
+      end
+      ret_val
     end
     private :server_stop_graceful
 
     def server_stop_forced(pid)
-      server_send_signal(pid, SIGNAL_STOP_FORCED, "server forced stop error (pid: #{pid})")
+      ret_val = @sysop.send_signal(pid, SIGNAL_STOP_FORCED)
+      unless (ret_val) then
+        @logger.error("server forced stop error (pid: #{pid})")
+      end
+      ret_val
     end
     private :server_stop_forced
 
@@ -175,7 +172,7 @@ module Riser
             @logger.debug("[server process message] #{s.chomp}") if @logger.debug?
           else
             @logger.error("no response from server process (pid: #{pid})")
-            server_send_signal(pid, SIGNAL_STOP_FORCED, "failed to kill abnormal server process (pid: #{pid})")
+            @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
             server_stop_wait(pid)
             return
           end
@@ -185,8 +182,10 @@ module Riser
       rescue
         @logger.error("unexpected error [#{$!}]")
         @logger.debug($!) if @logger.debug?
-        if (server_send_signal(pid, SIGNAL_STOP_FORCED, "failed to kill abnormal server process (pid: #{pid})")) then
+        if (@sysop.send_signal(pid, SIGNAL_STOP_FORCED)) then
           server_stop_wait(pid)
+        else
+          @logger.error("failed to kill abnormal server process (pid: #{pid})")
         end
         return
       end
@@ -278,13 +277,13 @@ module Riser
               end
             when :stat_get_and_reset
               @logger.info("stat get(reset: true) (pid: #{pid})")
-              server_send_signal(pid, SIGNAL_STAT_GET_AND_RESET, "failed to stat get(reset: true) (pid: #{pid})")
+              @sysop.send_signal(pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{pid})")
             when :stat_get_no_reset
               @logger.info("stat get(reset: false) (pid: #{pid})")
-              server_send_signal(pid, SIGNAL_STAT_GET_NO_RESET, "failed to stat get(reset: false) (pid: #{pid})")
+              @sysop.send_signal(pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{pid})")
             when :stat_stop
               @logger.info("stat stop (pid: #{pid})")
-              server_send_signal(pid, SIGNAL_STAT_STOP, "failed to stat stop (pid: #{pid})")
+              @sysop.send_signal(pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{pid})")
             else
               @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
             end
