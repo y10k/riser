@@ -125,17 +125,6 @@ module Riser
     end
     private :server_stop_forced
 
-    def server_stop_wait(pid, flags=0)
-      begin
-        Process.wait(pid, flags)
-      rescue
-        @logger.error("server wait(2) error (pid: #{pid}) [#{$!}]")
-        @logger.debug($!) if @logger.debug?
-        nil
-      end
-    end
-    private :server_stop_wait
-
     def run_server(server_socket)
       begin
         latch_read_io, latch_write_io = IO.pipe
@@ -183,7 +172,7 @@ module Riser
           else
             @logger.error("no response from server process (pid: #{pid})")
             @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
-            server_stop_wait(pid)
+            @sysop.wait(pid)
             return
           end
         ensure
@@ -193,7 +182,7 @@ module Riser
         @logger.error("unexpected error [#{$!}]")
         @logger.debug($!) if @logger.debug?
         if (@sysop.send_signal(pid, SIGNAL_STOP_FORCED)) then
-          server_stop_wait(pid)
+          @sysop.wait(pid)
         else
           @logger.error("failed to kill abnormal server process (pid: #{pid})")
         end
@@ -229,7 +218,7 @@ module Riser
       until (@stop_state)
         sleep(@server_watch_interval_seconds)
 
-        if (! pid || server_stop_wait(pid, Process::WNOHANG)) then
+        if (! pid || @sysop.wait(pid, Process::WNOHANG)) then
           if (pid) then
             @logger.warn("found server down (pid: #{pid}) and restart server.")
           else
@@ -278,7 +267,7 @@ module Riser
 
               if (next_pid = run_server(server_socket)) then
                 @logger.info("server process start (pid: #{next_pid})")
-                server_stop_wait(pid)
+                @sysop.wait(pid)
                 @logger.info("server stop completed (pid: #{pid})")
                 pid = next_pid
               else
@@ -308,7 +297,7 @@ module Riser
           @logger.fatal('failed to stop daemon.')
           return 1
         end
-        unless (server_stop_wait(pid)) then
+        unless (@sysop.wait(pid)) then
           @logger.fatal('failed to stop daemon.')
           return 1
         end
@@ -318,7 +307,7 @@ module Riser
           @logger.fatal('failed to stop daemon.')
           return 1
         end
-        unless (server_stop_wait(pid)) then
+        unless (@sysop.wait(pid)) then
           @logger.fatal('failed to stop daemon.')
           return 1
         end
