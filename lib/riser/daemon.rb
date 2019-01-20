@@ -74,6 +74,17 @@ module Riser
           nil
         end
       end
+
+      def close(io)
+        begin
+          io.close
+          io
+        rescue
+          @logger.error("failed to close(2) #{io.inspect} [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
     end
 
     include ServerSignal

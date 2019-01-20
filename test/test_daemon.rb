@@ -570,6 +570,20 @@ module Riser::Test
       @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
       assert_nil(@sysop.fork{})
     end
+
+    def test_close
+      f = File.open('/dev/null')
+      assert_equal(f, @sysop.close(f))
+    end
+
+    def test_close_fail
+      o = Object.new
+      def o.close
+        raise 'abort'
+      end
+
+      assert_nil(@sysop.close(o))
+    end
   end
 end
 
