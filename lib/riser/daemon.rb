@@ -107,6 +107,7 @@ module Riser
       @sysop = SystemOperation.new(@logger)
       @stop_state = nil
       @signal_operation_queue = []
+      @process_wait_count_table = {}
     end
 
     # should be called from signal(2) handler
@@ -211,7 +212,7 @@ module Riser
 
       if (! server_messg || error_count > 0) then
         @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
-        @sysop.wait(pid)
+        @process_wait_count_table[pid] = 0
         @logger.error('failed to start server.')
         return
       end
@@ -289,8 +290,7 @@ module Riser
 
               if (next_pid = run_server(server_socket)) then
                 @logger.info("server process start (pid: #{next_pid})")
-                @sysop.wait(pid)
-                @logger.info("server stop completed (pid: #{pid})")
+                @process_wait_count_table[pid] = 0
                 pid = next_pid
               else
                 # If the server fails to start, retry to start server in the next loop.
@@ -310,6 +310,18 @@ module Riser
             end
           end
         }
+
+        for wait_pid in @process_wait_count_table.keys
+          if (@sysop.wait(wait_pid, Process::WNOHANG)) then
+            @logger.info("server stop completed (pid: #{wait_pid})")
+            @process_wait_count_table.delete(wait_pid)
+          else
+            @process_wait_count_table[wait_pid] += 1
+            if (@process_wait_count_table[wait_pid] >= 2) then
+              @logger.warn("not stopped server process (pid: #{wait_pid})")
+            end
+          end
+        end
       end
 
       case (@stop_state)
