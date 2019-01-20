@@ -154,25 +154,22 @@ module Riser
       end
       latch_read_io, latch_write_io = read_write
 
-      begin
-        pid = Process.fork{
-          @logger.close
-          latch_read_io.close
+      pid = @sysop.fork{
+        @logger.close
+        latch_read_io.close
 
-          server = SocketServer.new
-          Signal.trap(SIGNAL_STOP_GRACEFUL) { server.signal_stop_graceful }
-          Signal.trap(SIGNAL_STOP_FORCED) { server.signal_stop_forced }
-          Signal.trap(SIGNAL_STAT_GET_AND_RESET) { server.signal_stat_get(reset: true) }
-          Signal.trap(SIGNAL_STAT_GET_NO_RESET) { server.signal_stat_get(reset: false) }
-          Signal.trap(SIGNAL_STAT_STOP) { server.signal_stat_stop }
-          @server_setup.call(server)
-          latch_write_io.puts("server process (pid: #{$$}) is ready to go.")
+        server = SocketServer.new
+        Signal.trap(SIGNAL_STOP_GRACEFUL) { server.signal_stop_graceful }
+        Signal.trap(SIGNAL_STOP_FORCED) { server.signal_stop_forced }
+        Signal.trap(SIGNAL_STAT_GET_AND_RESET) { server.signal_stat_get(reset: true) }
+        Signal.trap(SIGNAL_STAT_GET_NO_RESET) { server.signal_stat_get(reset: false) }
+        Signal.trap(SIGNAL_STAT_STOP) { server.signal_stat_stop }
+        @server_setup.call(server)
+        latch_write_io.puts("server process (pid: #{$$}) is ready to go.")
 
-          server.start(server_socket)
-        }
-      rescue
-        @logger.error("failed to fork(2) server process [#{$!}]")
-        @logger.debug($!) if @logger.debug?
+        server.start(server_socket)
+      }
+      unless (pid) then
         for io in [ latch_read_io, latch_write_io ]
           begin
             io.close
@@ -181,6 +178,7 @@ module Riser
             @logger.debug($!) if @logger.debug?
           end
         end
+        @logger.error('failed to start server')
         return
       end
 
