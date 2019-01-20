@@ -237,23 +237,23 @@ module Riser
       end
       @logger.info("open server socket: #{server_socket.local_address.inspect_sockaddr}")
 
-      unless (pid = run_server(server_socket)) then
+      unless (server_pid = run_server(server_socket)) then
         @logger.fatal('failed to start daemon.')
         return 1
       end
-      @logger.info("server process start (pid: #{pid})")
+      @logger.info("server process start (pid: #{server_pid})")
 
       until (@stop_state)
         sleep(@server_watch_interval_seconds)
 
-        if (! pid || @sysop.wait(pid, Process::WNOHANG)) then
-          if (pid) then
-            @logger.warn("found server down (pid: #{pid}) and restart server.")
+        if (! server_pid || @sysop.wait(server_pid, Process::WNOHANG)) then
+          if (server_pid) then
+            @logger.warn("found server down (pid: #{server_pid}) and restart server.")
           else
             @logger.warn('found server down and restart server.')
           end
-          if (pid = run_server(server_socket)) then
-            @logger.info("server process start (pid: #{pid})")
+          if (server_pid = run_server(server_socket)) then
+            @logger.info("server process start (pid: #{server_pid})")
           end
         end
 
@@ -279,46 +279,46 @@ module Riser
 
               case (sig_ope)
               when :restart_graceful
-                @logger.info("server graceful restart (pid: #{pid})")
-                server_stop_graceful(pid)
+                @logger.info("server graceful restart (pid: #{server_pid})")
+                server_stop_graceful(server_pid)
               when :restart_forced
-                @logger.info("server forced restart (pid: #{pid})")
-                server_stop_forced(pid)
+                @logger.info("server forced restart (pid: #{server_pid})")
+                server_stop_forced(server_pid)
               else
                 @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
               end
 
               if (next_pid = run_server(server_socket)) then
                 @logger.info("server process start (pid: #{next_pid})")
-                @process_wait_count_table[pid] = 0
-                pid = next_pid
+                @process_wait_count_table[server_pid] = 0
+                server_pid = next_pid
               else
                 # If the server fails to start, retry to start server in the next loop.
                 throw(:end_of_signal_operation)
               end
             when :stat_get_and_reset
-              @logger.info("stat get(reset: true) (pid: #{pid})")
-              @sysop.send_signal(pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{pid})")
+              @logger.info("stat get(reset: true) (pid: #{server_pid})")
+              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
             when :stat_get_no_reset
-              @logger.info("stat get(reset: false) (pid: #{pid})")
-              @sysop.send_signal(pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{pid})")
+              @logger.info("stat get(reset: false) (pid: #{server_pid})")
+              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
             when :stat_stop
-              @logger.info("stat stop (pid: #{pid})")
-              @sysop.send_signal(pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{pid})")
+              @logger.info("stat stop (pid: #{server_pid})")
+              @sysop.send_signal(server_pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{server_pid})")
             else
               @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
             end
           end
         }
 
-        for wait_pid in @process_wait_count_table.keys
-          if (@sysop.wait(wait_pid, Process::WNOHANG)) then
-            @logger.info("server stop completed (pid: #{wait_pid})")
-            @process_wait_count_table.delete(wait_pid)
+        for pid in @process_wait_count_table.keys
+          if (@sysop.wait(pid, Process::WNOHANG)) then
+            @logger.info("server stop completed (pid: #{pid})")
+            @process_wait_count_table.delete(pid)
           else
-            @process_wait_count_table[wait_pid] += 1
-            if (@process_wait_count_table[wait_pid] >= 2) then
-              @logger.warn("not stopped server process (pid: #{wait_pid})")
+            @process_wait_count_table[pid] += 1
+            if (@process_wait_count_table[pid] >= 2) then
+              @logger.warn("not stopped server process (pid: #{pid})")
             end
           end
         end
@@ -326,22 +326,22 @@ module Riser
 
       case (@stop_state)
       when :graceful
-        @logger.info("server graceful stop (pid: #{pid})")
-        unless (server_stop_graceful(pid)) then
+        @logger.info("server graceful stop (pid: #{server_pid})")
+        unless (server_stop_graceful(server_pid)) then
           @logger.fatal('failed to stop daemon.')
           return 1
         end
-        unless (@sysop.wait(pid)) then
+        unless (@sysop.wait(server_pid)) then
           @logger.fatal('failed to stop daemon.')
           return 1
         end
       when :forced
-        @logger.info("server forced stop (pid: #{pid})")
-        unless (server_stop_forced(pid)) then
+        @logger.info("server forced stop (pid: #{server_pid})")
+        unless (server_stop_forced(server_pid)) then
           @logger.fatal('failed to stop daemon.')
           return 1
         end
-        unless (@sysop.wait(pid)) then
+        unless (@sysop.wait(server_pid)) then
           @logger.fatal('failed to stop daemon.')
           return 1
         end
