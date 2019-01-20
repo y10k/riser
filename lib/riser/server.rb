@@ -184,6 +184,16 @@ module Riser
       [ @type ]
     end
 
+    def to_s
+      to_a.map{|s|
+        if (s.to_s.include? ':') then
+          "[#{s}]"
+        else
+          s
+        end
+      }.join(':')
+    end
+
     def ==(other)
       if (other.is_a? SocketAddress) then
         self.to_a == other.to_a
