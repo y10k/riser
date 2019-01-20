@@ -137,13 +137,12 @@ module Riser
     private :server_stop_forced
 
     def run_server(server_socket)
-      begin
-        latch_read_io, latch_write_io = IO.pipe
-      rescue
-        @logger.error("failed to pipe(2) [#{$!}]")
-        @logger.debug($!) if @logger.debug?
+      read_write = @sysop.pipe
+      unless (read_write) then
+        @logger.error('failed to start server')
         return
       end
+      latch_read_io, latch_write_io = read_write
 
       begin
         pid = Process.fork{
