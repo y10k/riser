@@ -99,10 +99,12 @@ module Riser
 
     include ServerSignal
 
-    def initialize(logger, sockaddr_get, server_polling_interval_seconds, &block) # :yields: socket_server
+    def initialize(logger, sockaddr_get, server_polling_interval_seconds, euid=nil, egid=nil, &block) # :yields: socket_server
       @logger = logger
       @sockaddr_get = sockaddr_get
       @server_polling_interval_seconds = server_polling_interval_seconds
+      @euid = euid
+      @egid = egid
       @server_setup = block
       @sysop = SystemOperation.new(@logger)
       @stop_state = nil
@@ -179,6 +181,16 @@ module Riser
       pid = @sysop.fork{
         @logger.close
         latch_read_io.close
+
+        if (@egid) then
+          @logger.info("change group privilege from #{Process::GID.eid} to #{@egid}")
+          Process::GID.change_privilege(@egid)
+        end
+
+        if (@euid) then
+          @logger.info("change user privilege from #{Process::UID.eid} to #{@euid}")
+          Process::UID.change_privilege(@euid)
+        end
 
         server = SocketServer.new
         Signal.trap(SIGNAL_STOP_GRACEFUL) { server.signal_stop_graceful }
