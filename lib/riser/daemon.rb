@@ -243,8 +243,14 @@ module Riser
       end
       @logger.info("server process start (pid: #{server_pid})")
 
+      @logger.info("start server polling (interval seconds: #{@server_polling_interval_seconds})")
       until (@stop_state)
         sleep(@server_polling_interval_seconds)
+        if (server_pid) then
+          @logger.debug("server polling... (pid: #{server_pid})") if @logger.debug?
+        else
+          @logger.debug('server polling...') if @logger.debug?
+        end
 
         if (! server_pid || @sysop.wait(server_pid, Process::WNOHANG)) then
           if (server_pid) then
