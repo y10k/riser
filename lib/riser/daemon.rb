@@ -190,6 +190,7 @@ module Riser
 
         server.start(server_socket)
       }
+
       unless (pid) then
         @sysop.close(latch_read_io)
         @sysop.close(latch_write_io)
@@ -197,28 +198,21 @@ module Riser
         return
       end
 
-      begin
-        begin
-          @sysop.close(latch_write_io)
-          if (s = latch_read_io.gets) then
-            @logger.debug("[server process message] #{s.chomp}") if @logger.debug?
-          else
-            @logger.error("no response from server process (pid: #{pid})")
-            @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
-            @sysop.wait(pid)
-            return
-          end
-        ensure
-          @sysop.close(latch_read_io)
-        end
-      rescue
-        @logger.error("unexpected error [#{$!}]")
-        @logger.debug($!) if @logger.debug?
-        if (@sysop.send_signal(pid, SIGNAL_STOP_FORCED)) then
-          @sysop.wait(pid)
-        else
-          @logger.error("failed to kill abnormal server process (pid: #{pid})")
-        end
+      error_count = 0
+      @sysop.close(latch_write_io) or error_count += 1
+      server_messg = @sysop.gets(latch_read_io)
+      @sysop.close(latch_read_io) or error_count += 1
+
+      if (server_messg) then
+        @logger.debug("[server process message] #{server_messg.chomp}") if @logger.debug?
+      else
+        @logger.error("no response from server process (pid: #{pid})")
+      end
+
+      if (! server_messg || error_count > 0) then
+        @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
+        @sysop.wait(pid)
+        @logger.error('failed to start server')
         return
       end
 
