@@ -3,9 +3,10 @@
 module Riser
   class RootProcess
     class SystemOperation
-      def initialize(logger, module_Process: Process)
+      def initialize(logger, module_Process: Process, class_IO: IO)
         @logger = logger
         @Process = module_Process
+        @IO = class_IO
       end
 
       def get_server_address(sockaddr_get)
@@ -49,6 +50,16 @@ module Riser
           @Process.wait(pid, flags)
         rescue
           @logger.error("failed to wait(2) for process (pid: #{pid}) [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
+      def pipe
+        begin
+          @IO.pipe
+        rescue
+          @logger.error("failed to pipe(2) [#{$!}]")
           @logger.debug($!) if @logger.debug?
           nil
         end

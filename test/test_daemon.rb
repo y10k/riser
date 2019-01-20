@@ -534,6 +534,27 @@ module Riser::Test
       @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
       assert_nil(@sysop.wait(1))
     end
+
+    def test_pipe
+      read_io, write_io = @sysop.pipe
+      begin
+        write_io << "HALO\n"
+        assert_equal("HALO\n", read_io.gets)
+      ensure
+        read_io.close
+        write_io.close
+      end
+    end
+
+    def test_pipe_fail
+      c_io = Object.new
+      def c_io.pipe
+        raise 'abort'
+      end
+
+      @sysop = Riser::RootProcess::SystemOperation.new(@logger, class_IO: c_io)
+      assert_nil(@sysop.pipe)
+    end
   end
 end
 
