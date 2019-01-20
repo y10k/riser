@@ -64,6 +64,16 @@ module Riser
           nil
         end
       end
+
+      def fork
+        begin
+          @Process.fork{ yield }
+        rescue
+          @logger.error("failed to fork(2) [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
     end
 
     include ServerSignal
