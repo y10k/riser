@@ -75,6 +75,16 @@ module Riser
         end
       end
 
+      def gets(io)
+        begin
+          io.gets
+        rescue
+          @logger.error("failed to get line from #{io.inspect} [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
       def close(io)
         begin
           io.close

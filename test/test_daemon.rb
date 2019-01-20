@@ -571,6 +571,26 @@ module Riser::Test
       assert_nil(@sysop.fork{})
     end
 
+    def test_gets
+      read_io, write_io = IO.pipe
+      begin
+        write_io << "HALO\n"
+        assert_equal("HALO\n", @sysop.gets(read_io))
+      ensure
+        read_io.close
+        write_io.close
+      end
+    end
+
+    def test_gets_fail
+      o = Object.new
+      def o.gets
+        raise 'abort'
+      end
+
+      assert_nil(@sysop.gets(o))
+    end
+
     def test_close
       f = File.open('/dev/null')
       assert_equal(f, @sysop.close(f))
