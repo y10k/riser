@@ -99,10 +99,10 @@ module Riser
 
     include ServerSignal
 
-    def initialize(logger, sockaddr_get, server_watch_interval_seconds, &block)
+    def initialize(logger, sockaddr_get, server_polling_interval_seconds, &block)
       @logger = logger
       @sockaddr_get = sockaddr_get
-      @server_watch_interval_seconds = server_watch_interval_seconds
+      @server_polling_interval_seconds = server_polling_interval_seconds
       @server_setup = block
       @sysop = SystemOperation.new(@logger)
       @stop_state = nil
@@ -244,7 +244,7 @@ module Riser
       @logger.info("server process start (pid: #{server_pid})")
 
       until (@stop_state)
-        sleep(@server_watch_interval_seconds)
+        sleep(@server_polling_interval_seconds)
 
         if (! server_pid || @sysop.wait(server_pid, Process::WNOHANG)) then
           if (server_pid) then
