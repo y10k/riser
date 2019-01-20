@@ -170,7 +170,7 @@ module Riser
     def run_server(server_socket)
       read_write = @sysop.pipe
       unless (read_write) then
-        @logger.error('failed to start server')
+        @logger.error('failed to start server.')
         return
       end
       latch_read_io, latch_write_io = read_write
@@ -194,7 +194,7 @@ module Riser
       unless (pid) then
         @sysop.close(latch_read_io)
         @sysop.close(latch_write_io)
-        @logger.error('failed to start server')
+        @logger.error('failed to start server.')
         return
       end
 
@@ -212,7 +212,7 @@ module Riser
       if (! server_messg || error_count > 0) then
         @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
         @sysop.wait(pid)
-        @logger.error('failed to start server')
+        @logger.error('failed to start server.')
         return
       end
 
