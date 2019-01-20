@@ -29,7 +29,7 @@ module Riser
         begin
           server_address.open_server
         rescue
-          @logger.error("failed to open server socket: #{server_address.inspect} [#{$!}]")
+          @logger.error("failed to open server socket: #{server_address} [#{$!}]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -266,7 +266,7 @@ module Riser
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
                     @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
-                    @sysop.close(server_socket) or @logger.warn("failed to close server socket (#{server_address.inspect})")
+                    @sysop.close(server_socket) or @logger.warn("failed to close server socket (#{server_address})")
                     server_socket = next_server_socket
                     server_address = next_server_address
                   else
