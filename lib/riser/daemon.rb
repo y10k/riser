@@ -43,6 +43,16 @@ module Riser
           nil
         end
       end
+
+      def wait(pid, flags=0)
+        begin
+          @Process.wait(pid, flags)
+        rescue
+          @logger.error("failed to wait(2) for process (pid: #{pid}) [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
     end
 
     include ServerSignal

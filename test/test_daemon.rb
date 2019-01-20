@@ -519,6 +519,21 @@ module Riser::Test
       @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
       assert_nil(@sysop.send_signal($$, 0))
     end
+
+    def test_wait
+      pid = fork{}
+      assert_equal(pid, @sysop.wait(pid))
+    end
+
+    def test_wait_fail
+      m_process = Object.new
+      def m_process.wait(pid, flags)
+        raise 'abort'
+      end
+
+      @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
+      assert_nil(@sysop.wait(1))
+    end
   end
 end
 
