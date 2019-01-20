@@ -99,7 +99,7 @@ module Riser
 
     include ServerSignal
 
-    def initialize(logger, sockaddr_get, server_polling_interval_seconds, &block)
+    def initialize(logger, sockaddr_get, server_polling_interval_seconds, &block) # :yields: socket_server
       @logger = logger
       @sockaddr_get = sockaddr_get
       @server_polling_interval_seconds = server_polling_interval_seconds
