@@ -272,13 +272,23 @@ module Riser::Test
     end
 
     def connect_server
-      timeout(@server_timeout_seconds) {
+      s = timeout(@server_timeout_seconds) {
         begin
           UNIXSocket.new(@unix_socket_path)
         rescue Errno::ENOENT, Errno::ECONNREFUSED
           retry
         end
       }
+
+      if (block_given?) then
+        begin
+          yield(s)
+        ensure
+          s.close
+        end
+      else
+        s
+      end
     end
     private :connect_server
 
@@ -293,14 +303,11 @@ module Riser::Test
       }
       start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("HALO\n")
         assert_equal("HALO\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       assert_equal(%w[ dispatch request-response ], @recorder.get_file_records)
     end
@@ -317,14 +324,11 @@ module Riser::Test
       start_server
 
       for word in %w[ foo bar baz ]
-        s = connect_server
-        begin
+        connect_server{|s|
           s.write("#{word}\n")
           assert_equal("#{word}\n", s.gets, "word: #{word}")
           assert_nil(s.gets)
-        ensure
-          s.close
-        end
+        }
       end
 
       assert_equal(%w[ dispatch request-response ] * 3, @recorder.get_file_records)
@@ -347,14 +351,11 @@ module Riser::Test
       }
       server_pid = start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("HALO\n")
         assert_equal("HALO\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
       kill_and_wait(SIGNAL_STOP_GRACEFUL, server_pid)
 
       assert_equal(%w[
@@ -384,8 +385,7 @@ module Riser::Test
       }
       server_pid = start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
 
@@ -396,9 +396,7 @@ module Riser::Test
         assert_equal("bar\n", s.gets)
         s.write("baz\n")
         assert_equal("baz\n", s.gets)
-      ensure
-        s.close
-      end
+      }
       Process.wait(server_pid)
 
       assert_equal(%w[
@@ -426,8 +424,7 @@ module Riser::Test
       }
       server_pid = start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
 
@@ -435,9 +432,7 @@ module Riser::Test
         sleep(server_polling_timeout_seconds * 10)
 
         assert_nil(s.gets 'should be closed by by server')
-      ensure
-        s.close
-      end
+      }
       Process.wait(server_pid)
 
       assert_equal(%w[
@@ -466,14 +461,11 @@ module Riser::Test
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("HALO\n")
         assert_equal("HALO\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
@@ -507,26 +499,20 @@ module Riser::Test
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("bar\n")
         assert_equal("bar\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
@@ -565,26 +551,20 @@ module Riser::Test
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("bar\n")
         assert_equal("bar\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 10)
@@ -665,13 +645,23 @@ module Riser::Test
     end
 
     def connect_server
-      timeout(@server_timeout_seconds) {
+      s = timeout(@server_timeout_seconds) {
         begin
           UNIXSocket.new(@unix_socket_path)
         rescue Errno::ENOENT, Errno::ECONNREFUSED
           retry
         end
       }
+
+      if (block_given?) then
+        begin
+          yield(s)
+        ensure
+          s.close
+        end
+      else
+        s
+      end
     end
     private :connect_server
 
@@ -686,14 +676,11 @@ module Riser::Test
       }
       start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("HALO\n")
         assert_equal("HALO\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       assert_equal(%w[ dispatch request-response ], @recorder.get_file_records)
     end
@@ -710,14 +697,11 @@ module Riser::Test
       start_server
 
       for word in %w[ foo bar baz ]
-        s = connect_server
-        begin
+        connect_server{|s|
           s.write("#{word}\n")
           assert_equal("#{word}\n", s.gets, "word: #{word}")
           assert_nil(s.gets)
-        ensure
-          s.close
-        end
+        }
       end
 
       assert_equal(%w[ dispatch request-response ] * 3, @recorder.get_file_records)
@@ -740,14 +724,11 @@ module Riser::Test
       }
       server_pid = start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("HALO\n")
         assert_equal("HALO\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
       kill_and_wait(SIGNAL_STOP_GRACEFUL, server_pid)
 
       assert_equal(%w[
@@ -780,8 +761,7 @@ module Riser::Test
       }
       server_pid = start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
 
@@ -792,9 +772,7 @@ module Riser::Test
         assert_equal("bar\n", s.gets)
         s.write("baz\n")
         assert_equal("baz\n", s.gets)
-      ensure
-        s.close
-      end
+      }
       Process.wait(server_pid)
 
       assert_equal(%w[
@@ -824,8 +802,7 @@ module Riser::Test
       }
       server_pid = start_server
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
 
@@ -833,9 +810,7 @@ module Riser::Test
         sleep(server_polling_timeout_seconds * 10)
 
         assert_nil(s.gets 'should be closed by by server')
-      ensure
-        s.close
-      end
+      }
       Process.wait(server_pid)
 
       assert_equal(%w[
@@ -866,14 +841,11 @@ module Riser::Test
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("HALO\n")
         assert_equal("HALO\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
@@ -909,26 +881,20 @@ module Riser::Test
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("bar\n")
         assert_equal("bar\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
@@ -972,26 +938,20 @@ module Riser::Test
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("foo\n")
         assert_equal("foo\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
 
-      s = connect_server
-      begin
+      connect_server{|s|
         s.write("bar\n")
         assert_equal("bar\n", s.gets)
         assert_nil(s.gets)
-      ensure
-        s.close
-      end
+      }
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, server_pid)
       sleep(server_polling_timeout_seconds * 20)
