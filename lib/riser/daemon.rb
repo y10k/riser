@@ -1,6 +1,34 @@
 # -*- coding: utf-8 -*-
 
 module Riser
+  class StatusFile
+    def initialize(filename)
+      @filename = filename
+    end
+
+    def open
+      @file = File.open(@filename, File::WRONLY | File::CREAT, 0644)
+      self
+    end
+
+    def close
+      @file.close
+      nil
+    end
+
+    def lock
+      @file.flock(File::LOCK_EX | File::LOCK_NB)
+    end
+
+    def write(text)
+      @file.truncate(0)
+      @file.seek(0)
+      ret_val = @file.write(text)
+      @file.flush
+      ret_val
+    end
+  end
+
   class RootProcess
     class SystemOperation
       def initialize(logger, module_Process: Process, class_IO: IO)

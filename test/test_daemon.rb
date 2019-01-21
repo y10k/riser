@@ -9,6 +9,64 @@ require 'test/unit'
 require 'timeout'
 
 module Riser::Test
+  class StatusFileTest < Test::Unit::TestCase
+    def setup
+      @filename = 'status_file_test'
+      @st = Riser::StatusFile.new(@filename)
+      @st.open
+    end
+
+    def teardown
+      @st.close
+      FileUtils.rm_f(@filename)
+    end
+
+    def test_lock
+      assert(@st.lock)
+    end
+
+    def test_lock_exclusive
+      lock_start = 'lock_start'
+      lock_end = 'lock_end'
+      begin
+        pid = fork{
+          st = Riser::StatusFile.new(@filename)
+          st.open
+          st.lock
+          FileUtils.touch(lock_start)
+          until (File.exist? lock_end)
+            # nothing to do.
+          end
+        }
+
+        begin
+          until (File.exist? lock_start)
+            # nothing to do.
+          end
+          assert(! @st.lock)
+        ensure
+          FileUtils.touch(lock_end)
+          Process.wait(pid)
+        end
+
+        assert(@st.lock)
+      ensure
+        FileUtils.rm_f(lock_start)
+        FileUtils.rm_f(lock_end)
+      end
+    end
+
+    def test_write
+      assert_equal('', IO.read(@filename))
+
+      @st.write("123\n")
+      assert_equal("123\n", IO.read(@filename))
+
+      @st.write("1\n")
+      assert_equal("1\n", IO.read(@filename))
+    end
+  end
+
   class RootProcessTest < Test::Unit::TestCase
     include Riser::ServerSignal
     include Timeout

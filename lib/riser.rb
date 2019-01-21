@@ -13,6 +13,7 @@ module Riser
   autoload :ServerSignal, 'riser/server'
   autoload :SocketAddress, 'riser/server'
   autoload :SocketServer, 'riser/server'
+  autoload :StatusFile, 'riser/daemon'
   autoload :Stream, 'riser/stream'
   autoload :TemporaryPath, 'riser/temppath'
   autoload :TimeoutSizedQueue, 'riser/server'
