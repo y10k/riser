@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 
+require 'logger'
+require 'syslog/logger'
+require 'yaml'
+
 module Riser
   class StatusFile
     def initialize(filename)
@@ -433,6 +437,94 @@ module Riser
       get_id(group, Process::GID)
     end
     module_function :get_gid
+
+    DEFAULT = {
+      daemonize: true,
+      daemon_name: 'ruby',
+      daemon_debug: $DEBUG,
+      daemon_nochdir: true,
+      status_file: nil,
+      socket_address: nil,
+      server_polling_interval_seconds: 3,
+      server_privileged_user: nil,
+      server_privileged_group: nil,
+
+      signal_stop_graceful:      SIGNAL_STOP_GRACEFUL,
+      signal_stop_forced:        SIGNAL_STOP_FORCED,
+      signal_stat_get_and_reset: SIGNAL_STAT_GET_AND_RESET,
+      signal_stat_get_no_reset:  SIGNAL_STAT_GET_NO_RESET,
+      signal_stat_stop:          SIGNAL_STAT_STOP,
+      signal_restart_graceful:   SIGNAL_RESTART_GRACEFUL,
+      signal_restart_forced:     SIGNAL_RESTART_FORCED
+    }.freeze
+
+    def start_daemon(config, &block) # :yields: socket_server
+      c = DEFAULT.dup
+      c.update(config)
+
+      if (c[:status_file]) then
+        status_file = StatusFile.new(c[:status_file])
+        status_file.open
+        status_file.lock or abort("#{c[:daemon_name]} daemon is already running.")
+      end
+
+      if (c[:daemonize]) then
+        logger = Syslog::Logger.new(c[:daemon_name])
+        def logger.close
+          Syslog::Logger.syslog = nil
+          Syslog.close
+          nil
+        end
+      else
+        logger = Logger.new(STDOUT)
+        logger.progname = c[:daemon_name]
+        def logger.close        # not close STDOUT
+        end
+      end
+
+      if (c[:daemon_debug]) then
+        logger.level = Logger::DEBUG
+      else
+        logger.level = Logger::INFO
+      end
+
+      case (c[:socket_address])
+      when Proc
+        sockaddr_get = c[:socket_address]
+      else
+        sockaddr_get = proc{ c[:socket_address] }
+      end
+
+      euid = get_uid(c[:server_privileged_user])
+      egid = get_gid(c[:server_privileged_group])
+
+      root_process = RootProcess.new(logger, sockaddr_get, c[:server_polling_interval_seconds], euid, egid, &block)
+      [ [ :signal_stop_graceful,      proc{ root_process.signal_stop_graceful }          ],
+        [ :signal_stop_forced,        proc{ root_process.signal_stop_forced }            ],
+        [ :signal_stat_get_and_reset, proc{ root_process.signal_stat_get(reset: true) }  ],
+        [ :signal_stat_get_no_reset,  proc{ root_process.signal_stat_get(reset: false) } ],
+        [ :signal_stat_stop,          proc{ root_process.signal_stat_stop }              ],
+        [ :signal_restart_graceful,   proc{ root_process.signal_restart_graceful }       ],
+        [ :signal_restart_forced,     proc{ root_process.signal_restart_forced }         ]
+      ].each{|sig_key, sig_hook|
+        if (signal = c[sig_key]) then
+          Signal.trap(signal, &sig_hook)
+        end
+      }
+
+      if (c[:daemonize]) then
+        Process.daemon(c[:daemon_nochdir], true)
+      end
+
+      # update after process ID changes in daemonization.
+      if (c[:status_file]) then
+        status_file.write({ 'pid' => $$ }.to_yaml)
+      end
+
+      status = root_process.start
+      exit(status)
+    end
+    module_function :start_daemon
   end
 end
 
