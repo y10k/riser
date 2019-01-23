@@ -409,6 +409,30 @@ module Riser
 
   module Daemon
     include ServerSignal
+
+    def get_id(name, id_mod)    # :nodoc:
+      if (name) then
+        case (name)
+        when Integer
+          name
+        when /\A \d+ \z/x
+          name.to_i
+        else
+          id_mod.from_name(name)
+        end
+      end
+    end
+    module_function :get_id
+
+    def get_uid(user)
+      get_id(user, Process::UID)
+    end
+    module_function :get_uid
+
+    def get_gid(group)
+      get_id(group, Process::GID)
+    end
+    module_function :get_gid
   end
 end
 

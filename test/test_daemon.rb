@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'etc'
 require 'fileutils'
 require 'logger'
 require 'riser'
@@ -661,6 +662,30 @@ module Riser::Test
       end
 
       assert_nil(@sysop.close(o))
+    end
+  end
+
+  class DaemonTest < Test::Unit::TestCase
+    def test_get_uid
+      assert_nil(Riser::Daemon.get_uid(nil))
+      assert_equal(1000, Riser::Daemon.get_uid(1000))
+      assert_equal(1000, Riser::Daemon.get_uid('1000'))
+
+      pw = Etc.getpwuid(Process.uid)
+      assert_equal(pw.uid, Riser::Daemon.get_uid(pw.name))
+
+      assert_raise(ArgumentError) { Riser::Daemon.get_uid('nothing_user') }
+    end
+
+    def test_get_gid
+      assert_nil(Riser::Daemon.get_gid(nil))
+      assert_equal(1000, Riser::Daemon.get_gid(1000))
+      assert_equal(1000, Riser::Daemon.get_gid('1000'))
+
+      gr = Etc.getgrgid(Process.gid)
+      assert_equal(gr.gid, Riser::Daemon.get_gid(gr.name))
+
+      assert_raise(ArgumentError) { Riser::Daemon.get_gid('nothing_group') }
     end
   end
 end
