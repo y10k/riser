@@ -226,6 +226,7 @@ module Riser
 
           server = SocketServer.new
           @server_setup.call(server)
+          server.setup(server_socket)
           Signal.trap(SIGNAL_STOP_GRACEFUL) { server.signal_stop_graceful }
           Signal.trap(SIGNAL_STOP_FORCED) { server.signal_stop_forced }
           Signal.trap(SIGNAL_STAT_GET_AND_RESET) { server.signal_stat_get(reset: true) }

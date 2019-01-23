@@ -232,8 +232,11 @@ module Riser::Test
         Signal.trap(SIGNAL_STAT_GET_AND_RESET) { @server.signal_stat_get }
         Signal.trap(SIGNAL_STAT_GET_NO_RESET) { @server.signal_stat_get(reset: false) }
         Signal.trap(SIGNAL_STAT_STOP) { @server.signal_stat_stop }
+
+        server_socket = UNIXServer.new(@unix_socket_path)
+        @server.setup(server_socket)
         FileUtils.touch(@server_start_wait_path)
-        @server.start(UNIXServer.new(@unix_socket_path))
+        @server.start(server_socket)
       }
 
       timeout(@server_timeout_seconds) {
@@ -620,8 +623,11 @@ module Riser::Test
         Signal.trap(SIGNAL_STAT_GET_AND_RESET) { @server.signal_stat_get }
         Signal.trap(SIGNAL_STAT_GET_NO_RESET) { @server.signal_stat_get(reset: false) }
         Signal.trap(SIGNAL_STAT_STOP) { @server.signal_stat_stop }
+
+        server_socket = UNIXServer.new(@unix_socket_path)
+        @server.setup(server_socket)
         FileUtils.touch(@server_start_wait_path)
-        @server.start(UNIXServer.new(@unix_socket_path))
+        @server.start(server_socket)
       }
 
       timeout(@server_timeout_seconds) {
