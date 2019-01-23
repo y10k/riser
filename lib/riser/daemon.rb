@@ -179,26 +179,32 @@ module Riser
       latch_read_io, latch_write_io = read_write
 
       pid = @sysop.fork{
+        begin
+          latch_read_io.close
+
+          if (@egid) then
+            @logger.info("change group privilege from #{Process::GID.eid} to #{@egid}")
+            Process::GID.change_privilege(@egid)
+          end
+
+          if (@euid) then
+            @logger.info("change user privilege from #{Process::UID.eid} to #{@euid}")
+            Process::UID.change_privilege(@euid)
+          end
+
+          server = SocketServer.new
+          @server_setup.call(server)
+          Signal.trap(SIGNAL_STOP_GRACEFUL) { server.signal_stop_graceful }
+          Signal.trap(SIGNAL_STOP_FORCED) { server.signal_stop_forced }
+          Signal.trap(SIGNAL_STAT_GET_AND_RESET) { server.signal_stat_get(reset: true) }
+          Signal.trap(SIGNAL_STAT_GET_NO_RESET) { server.signal_stat_get(reset: false) }
+          Signal.trap(SIGNAL_STAT_STOP) { server.signal_stat_stop }
+        rescue
+          @logger.error("failed to setup server (pid: #{$$}) [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          raise
+        end
         @logger.close
-        latch_read_io.close
-
-        if (@egid) then
-          @logger.info("change group privilege from #{Process::GID.eid} to #{@egid}")
-          Process::GID.change_privilege(@egid)
-        end
-
-        if (@euid) then
-          @logger.info("change user privilege from #{Process::UID.eid} to #{@euid}")
-          Process::UID.change_privilege(@euid)
-        end
-
-        server = SocketServer.new
-        Signal.trap(SIGNAL_STOP_GRACEFUL) { server.signal_stop_graceful }
-        Signal.trap(SIGNAL_STOP_FORCED) { server.signal_stop_forced }
-        Signal.trap(SIGNAL_STAT_GET_AND_RESET) { server.signal_stat_get(reset: true) }
-        Signal.trap(SIGNAL_STAT_GET_NO_RESET) { server.signal_stat_get(reset: false) }
-        Signal.trap(SIGNAL_STAT_STOP) { server.signal_stat_stop }
-        @server_setup.call(server)
         latch_write_io.puts("server process (pid: #{$$}) is ready to go.")
 
         server.start(server_socket)
