@@ -184,6 +184,16 @@ module Riser
       [ @type ]
     end
 
+    def to_s
+      to_a.map{|s|
+        if (s.to_s.include? ':') then
+          "[#{s}]"
+        else
+          s
+        end
+      }.join(':')
+    end
+
     def ==(other)
       if (other.is_a? SocketAddress) then
         self.to_a == other.to_a
@@ -261,6 +271,16 @@ module Riser
     def open_server
       TCPServer.new(@host, @port)
     end
+  end
+
+  module ServerSignal
+    SIGNAL_STOP_GRACEFUL      = :TERM
+    SIGNAL_STOP_FORCED        = :INT
+    SIGNAL_STAT_GET_AND_RESET = :USR1
+    SIGNAL_STAT_GET_NO_RESET  = :USR2
+    SIGNAL_STAT_STOP          = :WINCH
+    SIGNAL_RESTART_GRACEFUL   = :HUP
+    SIGNAL_RESTART_FORCED     = :QUIT
   end
 
   class UNIXSocketAddress < SocketAddress
@@ -402,7 +422,10 @@ module Riser
 
     # should be executed on the main thread sharing the stack with
     # signal(2) handlers
-    def start
+    #
+    # _server_socket is a dummy argument to call like
+    # SocketProcessDispatcher#start.
+    def start(_server_socket=nil)
       @preprocess.call
       begin
         queue = TimeoutSizedQueue.new(@thread_queue_size, name: @thread_queue_name)
@@ -468,6 +491,8 @@ module Riser
   SocketProcess = Struct.new(:pid, :io)
 
   class SocketProcessDispatcher
+    include ServerSignal
+
     NO_CALL = proc{}            # :nodoc:
 
     def initialize(process_queue_name, thread_queue_name)
@@ -553,11 +578,12 @@ module Riser
       nil
     end
 
-    SIGNAL_STOP_GRACEFUL      = 'TERM'
-    SIGNAL_STOP_FORCED        = 'QUIT'
-    SIGNAL_STAT_GET_AND_RESET = 'USR1'
-    SIGNAL_STAT_GET_NO_RESET  = 'USR2'
-    SIGNAL_STAT_STOP          = 'WINCH'
+    # after this method call is completed, the object will be ready to
+    # accept `signal_...' methods.
+    def setup
+      @process_dispatcher = SocketThreadDispatcher.new(@process_queue_name)
+      nil
+    end
 
     def start(server_socket)
       case (server_socket)
@@ -616,7 +642,7 @@ module Riser
         process_list << SocketProcess.new(pid, parent_io)
       end
 
-      @process_dispatcher = SocketThreadDispatcher.new(@process_queue_name)
+      setup unless @process_dispatcher
       @process_dispatcher.thread_num = @process_num
       @process_dispatcher.thread_queue_size = @process_queue_size
       @process_dispatcher.thread_queue_polling_timeout_seconds = @process_queue_polling_timeout_seconds
@@ -773,9 +799,9 @@ module Riser
       nil
     end
 
-    # should be executed on the main thread sharing the stack with
-    # signal(2) handlers
-    def start(server_socket)
+    # after this method call is completed, the object will be ready to
+    # accept `signal_...' methods.
+    def setup(server_socket)
       if (@process_num > 0) then
         @dispatcher = SocketProcessDispatcher.new('process_queue', 'thread_queue')
         @dispatcher.accept_polling_timeout_seconds = @accept_polling_timeout_seconds
@@ -796,13 +822,7 @@ module Riser
         @dispatcher.preprocess(&@preprocess)
         @dispatcher.postprocess(&@postprocess)
         @dispatcher.dispatch(&@dispatch)
-
-        @before_start.call(server_socket)
-        begin
-          @dispatcher.start(server_socket)
-        ensure
-          @after_stop.call
-        end
+        @dispatcher.setup
       else
         @dispatcher = SocketThreadDispatcher.new('thread_queue')
         @dispatcher.thread_num = @thread_num
@@ -822,13 +842,23 @@ module Riser
         }
         @dispatcher.accept_return(&NO_CALL)
         @dispatcher.dispatch(&@dispatch)
+      end
 
-        @before_start.call(server_socket)
-        begin
-          @dispatcher.start
-        ensure
-          @after_stop.call
-        end
+      nil
+    end
+
+    # should be executed on the main thread sharing the stack with
+    # signal(2) handlers
+    def start(server_socket)
+      unless (@dispatcher) then
+        setup(server_socket)
+      end
+
+      @before_start.call(server_socket)
+      begin
+        @dispatcher.start(server_socket)
+      ensure
+        @after_stop.call
       end
 
       nil

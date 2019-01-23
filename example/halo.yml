@@ -1,0 +1,18 @@
+daemon:
+  server_listen: localhost:8080
+  # server_privileged_user: nobody
+  # server_privileged_group: nogroup
+  server_polling_interval_seconds: 3
+server:
+  server_log_level: info
+  protocol_log_level: info
+  accept_polling_timeout_seconds: 0.1
+  process_num: 4
+  process_queue_size: 20
+  process_queue_polling_timeout_seconds: 0.1
+  process_send_io_polling_timeout_seconds: 0.1
+  thread_num: 4
+  thread_queue_size: 20
+  thread_queue_polling_timeout_seconds: 0.1
+  request_max_count: 100
+  request_timeout_seconds: 10

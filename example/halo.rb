@@ -2,25 +2,26 @@
 # -*- coding: utf-8 -*-
 
 require 'logger'
+require 'optparse'
 require 'pp'
 require 'riser'
-require 'socket'
 require 'thread'
 require 'time'
+require 'yaml'
 
 class ConnectionLimits
-  def initialize(max_count, request_timeout_seconds)
+  def initialize(request_max_count, request_timeout_seconds)
     @mutex = Mutex.new
-    self.max_count = max_count
+    self.request_max_count = request_max_count
     self.request_timeout_seconds = request_timeout_seconds
   end
 
-  def max_count
-    @mutex.synchronize{ @max_count }
+  def request_max_count
+    @mutex.synchronize{ @request_max_count }
   end
 
-  def max_count=(value)
-    @mutex.synchronize{ @max_count = value }
+  def request_max_count=(value)
+    @mutex.synchronize{ @request_max_count = value }
   end
 
   def request_timeout_seconds
@@ -32,101 +33,134 @@ class ConnectionLimits
   end
 end
 
-socket_config = ARGV.shift || 'localhost:8080'
-socket_address = Riser::SocketAddress.parse(socket_config)
-
-server = Riser::SocketServer.new
-server.process_num = 4
-
-Signal.trap('TERM') { server.signal_stop_graceful }
-Signal.trap('INT') { server.signal_stop_forced }
-Signal.trap('QUIT') { server.signal_stop_forced }
-Signal.trap('USR1') { server.signal_stat_get(reset: true) }
-Signal.trap('USR2') { server.signal_stat_get(reset: false) }
-Signal.trap('WINCH') { server.signal_stat_stop }
-
-conn_limits = ConnectionLimits.new(100, 10)
-server.before_start{|server_socket|
-  puts "before start (pid: #{Process.pid})"
-  puts "listen #{server_socket.local_address.inspect_sockaddr}"
+options = {
+  daemonize: false,
+  debug: false
 }
-server.at_fork{ puts "fork: #{Process.ppid} -> #{Process.pid}" }
-server.at_stop{|state|
-  puts "stop: #{state} (pid: #{Process.pid})"
-  conn_limits.max_count = 1
-  conn_limits.request_timeout_seconds = 0
-}
-server.at_stat{|info| puts info.pretty_inspect }
-server.preprocess{ puts "preprocess (pid: #{Process.pid})" }
-server.postprocess{ puts "postprocess (pid: #{Process.pid})" }
-server.after_stop{ puts "after stop (pid: #{Process.pid})" }
 
-HALO = IO.read(File.join(File.dirname(__FILE__),
-                         File.basename(__FILE__, '.rb') + '.html'))
+OptionParser.new{|opts|
+  opts.banner = "Usage: #{File.basename($0)} [options]"
+  opts.on('-d', '--[no-]daemonize', 'Run as daemon') do |value|
+    options[:daemonize] = value
+  end
+  opts.on('-g', '--[no-]debug', 'Run debug') do |value|
+    options[:debug] = value
+  end
+}.parse!
 
-stdout_log = Logger.new(STDOUT)
-protocol_log = Logger.new(File.join(File.dirname(__FILE__), 'protocol.log'))
+name = File.basename($0, '.rb')
+HALO = IO.read(File.join(File.dirname($0), "#{name}.html"))
+server_log   = File.join(File.dirname($0), "#{name}.log")
+protocol_log = File.join(File.dirname($0), 'protocol.log')
+status_file  = File.join(File.dirname($0), "#{name}.pid")
+config_path  = File.join(File.dirname($0), "#{name}.yml")
 
-server.dispatch{|socket|
-  begin
-    read_poll = Riser::ReadPoll.new(socket)
-    stream = Riser::WriteBufferStream.new(socket)
-    stream = Riser::LoggingStream.new(stream, protocol_log)
+config = YAML.load_file(config_path)['daemon']
 
-    stdout_log.info("connect from #{socket.remote_address.inspect_sockaddr}")
-    catch(:end_of_connection) {
-      count = 0
-      while (count < conn_limits.max_count)
-        count += 1
+Riser::Daemon.start_daemon(daemonize: options[:daemonize],
+                           daemon_name: name,
+                           daemon_debug: options[:debug],
+                           status_file: status_file,
+                           socket_address: proc{ YAML.load_file(config_path)['daemon']['server_listen'] },
+                           server_polling_interval_seconds: config['server_polling_interval_seconds'],
+                           server_privileged_user:          config['server_privileged_user'],
+                           server_privileged_group:         config['server_privileged_group']
+                          ) {|server|
 
-        until (read_poll.call(1))
-          if (read_poll.interval_seconds >= conn_limits.request_timeout_seconds) then
-            throw(:end_of_connection)
-          end
-        end
+  c = YAML.load_file(config_path)['server']
 
-        begin
-          if (request_line = stream.gets) then
-            if (request_line =~ %r"\A (\S+) \s (\S+) \s (HTTP/\S+) \r\n \z"x) then
-              method, path, version = $1, $2, $3
-              while (line = stream.gets)
-                if (line == "\r\n") then
-                  break
-                end
-              end
-              stdout_log.info("#{method} #{path} #{version}")
+  logger = Logger.new(server_log)
+  logger.level = c['server_log_level']
+  p_logger = Logger.new(protocol_log)
+  p_logger.level = c['protocol_log_level']
 
-              t = Time.now
-              case (method)
-              when 'GET'
-                stream << "HTTP/1.0 200 OK\r\n"
-                stream << "Content-Type: text/html\r\n"
-                stream << "Content-Length: #{HALO.bytesize}\r\n"
-                stream << "Date: #{t.httpdate}\r\n"
-                stream << "\r\n"
-                stream << HALO
-              else
-                stream << "HTTP/1.0 405 Method Not Allowed\r\n"
-                stream << "Content-Type: text/plain\r\n"
-                stream << "Date: #{t.httpdate}\r\n"
-                stream << "\r\n"
-                stream << "#{method} is not allowed.\r\n"
-                throw(:end_of_connection)
-              end
+  server.accept_polling_timeout_seconds          = c['accept_polling_timeout_seconds']
+  server.process_num                             = c['process_num']
+  server.process_queue_size                      = c['process_queue_size']
+  server.process_queue_polling_timeout_seconds   = c['process_queue_polling_timeout_seconds']
+  server.process_send_io_polling_timeout_seconds = c['process_send_io_polling_timeout_seconds']
+  server.thread_num                              = c['thread_num']
+  server.thread_queue_size                       = c['thread_queue_size']
+  server.thread_queue_polling_timeout_seconds    = c['thread_queue_polling_timeout_seconds']
+
+  server.before_start{|socket|
+    logger.info("start HTTP server: listen #{socket.local_address.inspect_sockaddr}")
+  }
+  server.after_stop{
+    logger.info('stop server')
+  }
+  server.at_stat{|info|
+    logger.info("stat: #{info.pretty_inspect}")
+  }
+
+  conn_limits = ConnectionLimits.new(c['request_max_count'], c['request_timeout_seconds'])
+  server.at_stop{|state|
+    logger.info("at stop: #{state}")
+    conn_limits.request_max_count = 1
+    conn_limits.request_timeout_seconds = 0
+  }
+
+  server.at_fork{ logger.info('at fork') }
+  server.preprocess{ logger.info('preprocess') }
+  server.postprocess{ logger.info('postprocess') }
+
+  server.dispatch{|socket|
+    begin
+      read_poll = Riser::ReadPoll.new(socket)
+      stream = Riser::WriteBufferStream.new(socket)
+      stream = Riser::LoggingStream.new(stream, p_logger)
+
+      logger.info("connect from #{socket.remote_address.inspect_sockaddr}")
+      catch(:end_of_connection) {
+        count = 0
+        while (count < conn_limits.request_max_count)
+          count += 1
+
+          until (read_poll.call(1))
+            if (read_poll.interval_seconds >= conn_limits.request_timeout_seconds) then
+              throw(:end_of_connection)
             end
           end
-        ensure
-          stream.flush
-        end
-      end
-    }
-    stream.close
-  rescue
-    stdout_log.error($!)
-  end
-}
 
-server.start(socket_address.open_server)
+          request_line = stream.gets or throw(:end_of_connection)
+          request_line =~ %r"\A (\S+) \s (\S+) \s (HTTP/\S+) \r\n \z"x or throw(:end_of_connection)
+          method, path, version = $1, $2, $3
+          while (line = stream.gets)
+            if (line == "\r\n") then
+              break
+            end
+          end
+          logger.info("#{method} #{path} #{version}")
+
+          begin
+            t = Time.now
+            case (method)
+            when 'GET', 'HEAD'
+              stream << "HTTP/1.0 200 OK\r\n"
+              stream << "Content-Type: text/html\r\n"
+              stream << "Content-Length: #{HALO.bytesize}\r\n"
+              stream << "Date: #{t.httpdate}\r\n"
+              stream << "\r\n"
+              stream << HALO if (method == 'GET')
+            else
+              stream << "HTTP/1.0 405 Method Not Allowed\r\n"
+              stream << "Content-Type: text/plain\r\n"
+              stream << "Date: #{t.httpdate}\r\n"
+              stream << "\r\n"
+              stream << "#{method} is not allowed.\r\n"
+              throw(:end_of_connection)
+            end
+          ensure
+            stream.flush
+          end
+        end
+      }
+      stream.close
+    rescue
+      logger.error($!)
+    end
+  }
+}
 
 # Local Variables:
 # mode: Ruby
