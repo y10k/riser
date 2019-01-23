@@ -265,12 +265,12 @@ module Riser
 
   module ServerSignal
     SIGNAL_STOP_GRACEFUL      = :TERM
-    SIGNAL_STOP_FORCED        = :QUIT
+    SIGNAL_STOP_FORCED        = :INT
     SIGNAL_STAT_GET_AND_RESET = :USR1
     SIGNAL_STAT_GET_NO_RESET  = :USR2
     SIGNAL_STAT_STOP          = :WINCH
     SIGNAL_RESTART_GRACEFUL   = :HUP
-    SIGNAL_RESTART_FORCED     = :INT
+    SIGNAL_RESTART_FORCED     = :QUIT
   end
 
   class UNIXSocketAddress < SocketAddress
