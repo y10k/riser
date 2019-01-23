@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 require 'logger'
+require 'optparse'
 require 'pp'
 require 'riser'
 require 'thread'
@@ -32,6 +33,21 @@ class ConnectionLimits
   end
 end
 
+options = {
+  daemonize: false,
+  debug: false
+}
+
+OptionParser.new{|opts|
+  opts.banner = "Usage: #{File.basename($0)} [options]"
+  opts.on('-d', '--[no-]daemonize', 'Run as daemon') do |value|
+    options[:daemonize] = value
+  end
+  opts.on('-g', '--[no-]debug', 'Run debug') do |value|
+    options[:debug] = value
+  end
+}.parse!
+
 name = File.basename($0, '.rb')
 HALO = IO.read(File.join(File.dirname($0), "#{name}.html"))
 server_log   = File.join(File.dirname($0), "#{name}.log")
@@ -41,9 +57,9 @@ config_path  = File.join(File.dirname($0), "#{name}.yml")
 
 config = YAML.load_file(config_path)['daemon']
 
-Riser::Daemon.start_daemon(daemonize: false,
+Riser::Daemon.start_daemon(daemonize: options[:daemonize],
                            daemon_name: name,
-                           daemon_debug: true,
+                           daemon_debug: options[:debug],
                            status_file: status_file,
                            socket_address: proc{ YAML.load_file(config_path)['daemon']['server_listen'] },
                            server_polling_interval_seconds: config['server_polling_interval_seconds'],
