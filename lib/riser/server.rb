@@ -7,11 +7,6 @@ require 'uri'
 
 module Riser
   class TimeoutSizedQueue
-    # When the queue is processed at high speed without staying, it is
-    # better to set the queue size to about 10 times the number of
-    # waiting threads in order to increase the queue throughput. If
-    # queue staying time is long, it is better to set a small queue
-    # size so that you do not want to queue data at long time.
     def initialize(size, name: nil)
       @size = size
       @queue = []
@@ -115,9 +110,6 @@ module Riser
       nil
     end
 
-    # The bottle neck of queue is `ConditionVariable#wait'. In order to
-    # improve queue performance, please adjust the queue size and number of
-    # threads so that `push_wait_ratio' and `pop_wait_ratio' become smaller.
     def stat_get(reset: true)
       if (@stat_enable) then
         info = nil
