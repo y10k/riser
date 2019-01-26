@@ -347,7 +347,7 @@ module Riser
           end
         end
 
-        while (server_pid && sig_ope = @signal_operation_queue.shift)
+        while (! @stop_state && server_pid && sig_ope = @signal_operation_queue.shift)
           case (sig_ope)
           when :restart_graceful, :restart_forced
             if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
