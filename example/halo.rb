@@ -60,7 +60,7 @@ Riser::Daemon.start_daemon(daemonize: options[:daemonize],
                            daemon_name: name,
                            daemon_debug: options[:debug],
                            status_file: status_file,
-                           socket_address: proc{ YAML.load_file(config_path)['daemon']['server_listen'] },
+                           listen_address: proc{ YAML.load_file(config_path)['daemon']['server_listen'] },
                            server_polling_interval_seconds: config['server_polling_interval_seconds'],
                            server_privileged_user:          config['server_privileged_user'],
                            server_privileged_group:         config['server_privileged_group']

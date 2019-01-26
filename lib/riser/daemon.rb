@@ -445,7 +445,7 @@ module Riser
       daemon_debug: $DEBUG,
       daemon_nochdir: true,
       status_file: nil,
-      socket_address: nil,
+      listen_address: nil,
       server_polling_interval_seconds: 3,
       server_privileged_user: nil,
       server_privileged_group: nil,
@@ -491,11 +491,11 @@ module Riser
         logger.level = Logger::INFO
       end
 
-      case (c[:socket_address])
+      case (c[:listen_address])
       when Proc
-        sockaddr_get = c[:socket_address]
+        sockaddr_get = c[:listen_address]
       else
-        sockaddr_get = proc{ c[:socket_address] }
+        sockaddr_get = proc{ c[:listen_address] }
       end
 
       euid = get_uid(c[:server_privileged_user])
