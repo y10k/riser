@@ -211,6 +211,12 @@ module Riser
       nil
     end
 
+    # should be called from signal(2) handler
+    def signal_server_down
+      interrupt_server_polling_sleep
+      nil
+    end
+
     def server_stop_graceful(pid)
       ret_val = @sysop.send_signal(pid, SIGNAL_STOP_GRACEFUL)
       unless (ret_val) then
@@ -553,6 +559,7 @@ module Riser
           Signal.trap(signal, &sig_hook)
         end
       }
+      Signal.trap(:CHLD) { root_process.signal_server_down }
 
       if (c[:daemonize]) then
         Process.daemon(c[:daemon_nochdir], true)
