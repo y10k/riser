@@ -491,8 +491,7 @@ module Riser
         logger.level = Logger::INFO
       end
 
-      case (c[:listen_address])
-      when Proc
+      if (c[:listen_address].respond_to? :call) then
         sockaddr_get = c[:listen_address]
       else
         sockaddr_get = proc{ c[:listen_address] }
