@@ -622,6 +622,7 @@ module Riser
           Signal.trap(SIGNAL_STAT_STOP) { thread_dispatcher.signal_stat_stop }
 
           begin
+            child_io.write("RADY\n")
             @at_fork.call
             thread_dispatcher.start
           ensure
@@ -631,6 +632,11 @@ module Riser
         child_io.close
 
         process_list << SocketProcess.new(pid, parent_io)
+      end
+
+      for process in process_list
+        response = process.io.read(5)
+        response == "RADY\n" or raise "internal error: unknown response <#{response.inspect}>"
       end
 
       setup unless @process_dispatcher
