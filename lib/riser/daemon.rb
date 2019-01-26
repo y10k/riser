@@ -459,6 +459,8 @@ module Riser
       signal_restart_forced:     SIGNAL_RESTART_FORCED
     }.freeze
 
+    # should be executed on the main thread sharing the stack with
+    # signal(2) handlers
     def start_daemon(config, &block) # :yields: socket_server
       c = DEFAULT.dup
       c.update(config)
