@@ -488,7 +488,7 @@ module Riser
     end
   end
 
-  SocketProcess = Struct.new(:pid, :io)
+  SocketProcess = Struct.new(:pid, :io) # :nodoc:
 
   class SocketProcessDispatcher
     include ServerSignal
