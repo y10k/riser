@@ -2,7 +2,6 @@
 
 require 'io/wait'
 require 'socket'
-require 'thread'
 require 'uri'
 
 module Riser
@@ -11,9 +10,9 @@ module Riser
       @size = size
       @queue = []
       @closed = false
-      @mutex = Mutex.new
-      @push_cond = ConditionVariable.new
-      @pop_cond = ConditionVariable.new
+      @mutex = Thread::Mutex.new
+      @push_cond = Thread::ConditionVariable.new
+      @pop_cond = Thread::ConditionVariable.new
       @name = name && name.dup.freeze
       @stat_enable = false
     end

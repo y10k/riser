@@ -5,11 +5,10 @@ require 'logger'
 require 'openssl'
 require 'riser'
 require 'socket'
-require 'thread'
 
 class ConnectionLimits
   def initialize(request_max_count, request_timeout_seconds)
-    @mutex = Mutex.new
+    @mutex = Thread::Mutex.new
     self.request_max_count = request_max_count
     self.request_timeout_seconds = request_timeout_seconds
   end

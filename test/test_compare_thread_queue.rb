@@ -10,7 +10,7 @@ module Riser::Test
       def initialize(num_parties)
         @num_parties = num_parties
         @count = 0
-        @mutex = Mutex.new
+        @mutex = Thread::Mutex.new
         @cond = Thread::ConditionVariable.new
       end
 
@@ -47,7 +47,7 @@ module Riser::Test
     private :measure_elapsed_time
 
     def test_queue
-      queue = Queue.new
+      queue = Thread::Queue.new
       push_values = (1..@count_max).to_a
       barrier = CyclicBarrier.new(@thread_num + 1)
 
@@ -88,7 +88,7 @@ module Riser::Test
     end
 
     def test_sized_queue
-      queue = SizedQueue.new(@thread_num * 10)
+      queue = Thread::SizedQueue.new(@thread_num * 10)
       push_values = (1..@count_max).to_a
       barrier = CyclicBarrier.new(@thread_num + 1)
 

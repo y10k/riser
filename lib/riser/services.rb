@@ -4,7 +4,6 @@ require 'drb/drb'
 require 'drb/ssl'
 require 'drb/unix'
 require 'forwardable'
-require 'thread'
 
 module Riser
   DRbService = Struct.new(:front, :at_fork, :preprocess, :postprocess, :ref) # :nodoc:
@@ -12,7 +11,7 @@ module Riser
 
   class DRbServiceFront
     def initialize
-      @mutex = Mutex.new
+      @mutex = Thread::Mutex.new
       @services = {}
     end
 
@@ -145,7 +144,7 @@ module Riser
 
   class DRbServiceCall
     def initialize
-      @mutex = Mutex.new
+      @mutex = Thread::Mutex.new
       @service_names = {}
       @druby_call_list = []
       @random = nil
@@ -253,11 +252,11 @@ module Riser
     def initialize
       @services = {}
       @hook_thread = nil
-      @mutex = Mutex.new
+      @mutex = Thread::Mutex.new
       @state = nil
-      @state_cond = ConditionVariable.new
+      @state_cond = Thread::ConditionVariable.new
       @stop = false
-      @stop_cond = ConditionVariable.new
+      @stop_cond = Thread::ConditionVariable.new
     end
 
     def add_service(name, front)

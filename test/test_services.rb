@@ -4,7 +4,6 @@ require 'fileutils'
 require 'riser'
 require 'riser/test'
 require 'test/unit'
-require 'thread'
 
 module Riser::Test
   module Fib
@@ -20,7 +19,7 @@ module Riser::Test
 
   class Count
     def initialize
-      @mutex = Mutex.new
+      @mutex = Thread::Mutex.new
       @count = Hash.new(0)
     end
 
