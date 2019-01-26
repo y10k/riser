@@ -141,31 +141,55 @@ module Riser
       @server_setup = block
       @sysop = SystemOperation.new(@logger)
       @stop_state = nil
+      @in_server_polling_sleep = false
       @signal_operation_queue = []
       @process_wait_count_table = {}
     end
 
+    def server_polling_sleep
+      catch(:end_of_server_polling_sleep) {
+        begin
+          @in_server_polling_sleep = true
+          sleep(@server_polling_interval_seconds)
+        ensure
+          @in_server_polling_sleep = false
+        end
+      }
+    end
+    private :server_polling_sleep
+
+    def interrupt_server_polling_sleep
+      if (@in_server_polling_sleep) then
+        throw(:end_of_server_polling_sleep)
+      end
+    end
+    private :interrupt_server_polling_sleep
+
     # should be called from signal(2) handler
     def signal_stop_graceful
       @stop_state ||= :graceful
+      interrupt_server_polling_sleep
       nil
     end
 
     # should be called from signal(2) handler
     def signal_stop_forced
       @stop_state ||= :forced
+      interrupt_server_polling_sleep
       nil
     end
 
     # should be called from signal(2) handler
     def signal_restart_graceful
       @signal_operation_queue << :restart_graceful
+      interrupt_server_polling_sleep
       nil
     end
 
     # should be called from signal(2) handler
     def signal_restart_forced
       @signal_operation_queue << :restart_forced
+      interrupt_server_polling_sleep
       nil
     end
 
@@ -176,12 +200,14 @@ module Riser
       else
         @signal_operation_queue << :stat_get_no_reset
       end
+      interrupt_server_polling_sleep
       nil
     end
 
     # should be called from signal(2) handler
     def signal_stat_stop
       @signal_operation_queue << :stat_stop
+      interrupt_server_polling_sleep
       nil
     end
 
@@ -297,7 +323,7 @@ module Riser
 
       @logger.info("start server polling (interval seconds: #{@server_polling_interval_seconds})")
       until (@stop_state)
-        sleep(@server_polling_interval_seconds)
+        server_polling_sleep
         if (server_pid) then
           @logger.debug("server polling... (pid: #{server_pid})") if @logger.debug?
         else
