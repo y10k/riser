@@ -1,6 +1,7 @@
 daemon:
   # parameters that will not be reloaded on server restart
   server_polling_interval_seconds: 3
+  server_restart_overlap_seconds: 0
   #server_privileged_user: nobody
   #server_privileged_group: nogroup
 server:

@@ -65,6 +65,7 @@ Riser::Daemon.start_daemon(daemonize: options[:daemonize],
                              YAML.load_file(config_path).dig('server', 'server_listen')
                            },
                            server_polling_interval_seconds: config['server_polling_interval_seconds'],
+                           server_restart_overlap_seconds:  config['server_restart_overlap_seconds'],
                            server_privileged_user:          config['server_privileged_user'],
                            server_privileged_group:         config['server_privileged_group']
                           ) {|server|

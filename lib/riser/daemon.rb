@@ -131,10 +131,11 @@ module Riser
 
     include ServerSignal
 
-    def initialize(logger, sockaddr_get, server_polling_interval_seconds, euid=nil, egid=nil, &block) # :yields: socket_server
+    def initialize(logger, sockaddr_get, server_polling_interval_seconds, server_restart_overlap_seconds=0, euid=nil, egid=nil, &block) # :yields: socket_server
       @logger = logger
       @sockaddr_get = sockaddr_get
       @server_polling_interval_seconds = server_polling_interval_seconds
+      @server_restart_overlap_seconds = server_restart_overlap_seconds
       @euid = euid
       @egid = egid
       @server_setup = block
@@ -314,59 +315,71 @@ module Riser
           end
         end
 
-        catch(:end_of_signal_operation) {
-          while (server_pid && sig_ope = @signal_operation_queue.shift)
-            case (sig_ope)
-            when :restart_graceful, :restart_forced
-              if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
-                if (next_server_address != server_address) then
-                  if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
-                    @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
-                    @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
-                    @sysop.close(server_socket) or @logger.warn("failed to close server socket (#{server_address})")
-                    server_socket = next_server_socket
-                    server_address = next_server_address
-                  else
-                    @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
-                  end
+        while (server_pid && sig_ope = @signal_operation_queue.shift)
+          case (sig_ope)
+          when :restart_graceful, :restart_forced
+            if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
+              if (next_server_address != server_address) then
+                if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
+                  @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
+                  @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
+                  @sysop.close(server_socket) or @logger.warn("failed to close server socket (#{server_address})")
+                  server_socket = next_server_socket
+                  server_address = next_server_address
+                else
+                  @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
                 end
-              else
-                @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+              end
+            else
+              @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+            end
+
+            case (sig_ope)
+            when :restart_graceful
+              @logger.info("server graceful restart (pid: #{server_pid})")
+            when :restart_forced
+              @logger.info("server forced restart (pid: #{server_pid})")
+            else
+              @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
+            end
+
+            if (next_pid = run_server(server_socket)) then
+              @logger.info("server process start (pid: #{next_pid})")
+
+              if (@server_restart_overlap_seconds > 0) then
+                @logger.info("server restart overlap (interval seconds: #{@server_restart_overlap_seconds})")
+                sleep(@server_restart_overlap_seconds)
               end
 
               case (sig_ope)
               when :restart_graceful
-                @logger.info("server graceful restart (pid: #{server_pid})")
+                @logger.info("server graceful stop (pid: #{server_pid})")
                 server_stop_graceful(server_pid)
               when :restart_forced
-                @logger.info("server forced restart (pid: #{server_pid})")
+                @logger.info("server forced stop (pid: #{server_pid})")
                 server_stop_forced(server_pid)
               else
                 @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
               end
 
-              if (next_pid = run_server(server_socket)) then
-                @logger.info("server process start (pid: #{next_pid})")
-                @process_wait_count_table[server_pid] = 0
-                server_pid = next_pid
-              else
-                # If the server fails to start, retry to start server in the next loop.
-                throw(:end_of_signal_operation)
-              end
-            when :stat_get_and_reset
-              @logger.info("stat get(reset: true) (pid: #{server_pid})")
-              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
-            when :stat_get_no_reset
-              @logger.info("stat get(reset: false) (pid: #{server_pid})")
-              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
-            when :stat_stop
-              @logger.info("stat stop (pid: #{server_pid})")
-              @sysop.send_signal(server_pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{server_pid})")
+              @process_wait_count_table[server_pid] = 0
+              server_pid = next_pid
             else
-              @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
+              @logger.warn("server continue (pid: #{server_pid})")
             end
+          when :stat_get_and_reset
+            @logger.info("stat get(reset: true) (pid: #{server_pid})")
+            @sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
+          when :stat_get_no_reset
+            @logger.info("stat get(reset: false) (pid: #{server_pid})")
+            @sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
+          when :stat_stop
+            @logger.info("stat stop (pid: #{server_pid})")
+            @sysop.send_signal(server_pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{server_pid})")
+          else
+            @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
           end
-        }
+        end
 
         for pid in @process_wait_count_table.keys
           if (@sysop.wait(pid, Process::WNOHANG)) then
@@ -447,6 +460,7 @@ module Riser
       status_file: nil,
       listen_address: nil,
       server_polling_interval_seconds: 3,
+      server_restart_overlap_seconds: 0,
       server_privileged_user: nil,
       server_privileged_group: nil,
 
@@ -500,7 +514,7 @@ module Riser
       euid = get_uid(c[:server_privileged_user])
       egid = get_gid(c[:server_privileged_group])
 
-      root_process = RootProcess.new(logger, sockaddr_get, c[:server_polling_interval_seconds], euid, egid, &block)
+      root_process = RootProcess.new(logger, sockaddr_get, c[:server_polling_interval_seconds], c[:server_restart_overlap_seconds], euid, egid, &block)
       [ [ :signal_stop_graceful,      proc{ root_process.signal_stop_graceful }          ],
         [ :signal_stop_forced,        proc{ root_process.signal_stop_forced }            ],
         [ :signal_stat_get_and_reset, proc{ root_process.signal_stat_get(reset: true) }  ],

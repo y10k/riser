@@ -294,7 +294,7 @@ module Riser::Test
       assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
       Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
-      sleep(@dt * 10)
+      sleep(@dt * 50)           # need for 10s of milliseconds to stop the process
 
       connect_server{|s|
         s.write("HALO\n")
@@ -329,7 +329,7 @@ module Riser::Test
       assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
       Process.kill(SIGNAL_RESTART_FORCED, pid)
-      sleep(@dt * 10)
+      sleep(@dt * 50)           # need for 10s of milliseconds to stop the process
 
       connect_server{|s|
         s.write("HALO\n")
@@ -376,7 +376,7 @@ module Riser::Test
         assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
         Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
-        sleep(@dt * 10)
+        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
         @unix_socket_path = unix_socket_path_list[1]
 
         connect_server{|s|
@@ -416,7 +416,7 @@ module Riser::Test
       assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
       Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
-      sleep(@dt * 10)
+      sleep(@dt * 50)           # need for 10s of milliseconds to stop the process
 
       connect_server{|s|
         s.write("HALO\n")
@@ -464,7 +464,7 @@ module Riser::Test
         assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
         Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
-        sleep(@dt * 10)
+        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
 
         connect_server{|s|
           s.write("HALO\n")
