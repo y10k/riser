@@ -218,20 +218,12 @@ module Riser
     end
 
     def server_stop_graceful(pid)
-      ret_val = @sysop.send_signal(pid, SIGNAL_STOP_GRACEFUL)
-      unless (ret_val) then
-        @logger.error("server graceful stop error (pid: #{pid})")
-      end
-      ret_val
+      @sysop.send_signal(pid, SIGNAL_STOP_GRACEFUL)
     end
     private :server_stop_graceful
 
     def server_stop_forced(pid)
-      ret_val = @sysop.send_signal(pid, SIGNAL_STOP_FORCED)
-      unless (ret_val) then
-        @logger.error("server forced stop error (pid: #{pid})")
-      end
-      ret_val
+      @sysop.send_signal(pid, SIGNAL_STOP_FORCED)
     end
     private :server_stop_forced
 
