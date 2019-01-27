@@ -282,6 +282,45 @@ module Riser::Test
       assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
     end
 
+    def test_daemon_server_down_and_restart_fail
+      server_fail = 'test_server_fail'
+      begin
+        pid = start_daemon(@logger, proc{ @addr_conf }, @dt) {|server|
+          if (File.exist? server_fail) then
+            Process.exit!(1)
+          end
+
+          server.before_start{|server_socket| @recorder.call(Process.pid.to_s) }
+          server.dispatch{|socket|
+            if (line = socket.gets) then
+              socket.write(line)
+            end
+            socket.close
+          }
+        }
+
+        connect_server{|s|
+          s.write("HALO\n")
+          assert_equal("HALO\n", s.gets)
+          assert_nil(s.gets)
+        }
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        FileUtils.touch(server_fail)
+        Process.kill(SIGNAL_STOP_FORCED, @recorder.get_file_records[0].to_i)
+        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        kill_and_wait(SIGNAL_STOP_GRACEFUL, pid)
+      ensure
+        FileUtils.rm_f(server_fail)
+      end
+    end
+
     def test_daemon_server_restart_graceful
       pid = start_daemon(@logger, proc{ @addr_conf }, @dt) {|server|
         server.before_start{|server_socket| @recorder.call(Process.pid.to_s) }
