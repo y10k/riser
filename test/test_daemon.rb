@@ -81,6 +81,7 @@ module Riser::Test
       end
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL.succ
       @dt = 0.001
+      @daemon_start_wait_path = 'root_process_start'
       @store_path = 'daemon_test'
       @recorder = CallRecorder.new(@store_path)
     end
@@ -99,7 +100,14 @@ module Riser::Test
         Signal.trap(SIGNAL_STAT_STOP) { root_process.signal_stat_stop }
         Signal.trap(SIGNAL_RESTART_GRACEFUL) { root_process.signal_restart_graceful }
         Signal.trap(SIGNAL_RESTART_FORCED) { root_process.signal_restart_forced }
+        FileUtils.touch(@daemon_start_wait_path)
         root_process.start
+      }
+
+      timeout(@daemon_timeout_seconds) {
+        until (File.exist? @daemon_start_wait_path)
+          # nothing to do.
+        end
       }
 
       @pid
@@ -126,6 +134,7 @@ module Riser::Test
       end
 
       FileUtils.rm_f(@unix_socket_path)
+      FileUtils.rm_f(@daemon_start_wait_path)
       FileUtils.rm_f(@store_path)
     end
 
