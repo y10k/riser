@@ -648,6 +648,73 @@ module Riser::Test
 
       assert_equal(%w[ stat stat ], @recorder.get_file_records)
     end
+
+    def test_daemon_server_down_ignored_signals
+      server_fail = 'test_server_fail'
+      begin
+        pid = start_daemon(@logger, proc{ @addr_conf }, @dt) {|server|
+          if (File.exist? server_fail) then
+            Process.exit!(1)
+          end
+
+          server.before_start{|server_socket| @recorder.call(Process.pid.to_s) }
+          server.at_stat{|info| @recorder.call('stat') }
+          server.dispatch{|socket|
+            if (line = socket.gets) then
+              socket.write(line)
+            end
+            socket.close
+          }
+        }
+
+        connect_server{|s|
+          s.write("HALO\n")
+          assert_equal("HALO\n", s.gets)
+          assert_nil(s.gets)
+        }
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        FileUtils.touch(server_fail)
+        Process.kill(SIGNAL_STOP_FORCED, @recorder.get_file_records[0].to_i)
+        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
+        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        Process.kill(SIGNAL_RESTART_FORCED, pid)
+        sleep(@dt * 50)           # need for 10s of milliseconds to stop the process
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        Process.kill(SIGNAL_STAT_GET_AND_RESET, pid)
+        sleep(@dt * 10)
+
+        assert_equal(0, @recorder.get_file_records.count('stat'))
+
+        Process.kill(SIGNAL_STAT_GET_NO_RESET, pid)
+        sleep(@dt * 10)
+
+        assert_equal(0, @recorder.get_file_records.count('stat'))
+
+        Process.kill(SIGNAL_STAT_STOP, pid)
+        sleep(@dt * 10)
+
+        assert_equal(0, @recorder.get_file_records.count('stat'))
+
+        kill_and_wait(SIGNAL_STOP_GRACEFUL, pid)
+      ensure
+        FileUtils.rm_f(server_fail)
+      end
+    end
   end
 
   class RootProcessSystemOperationTest < Test::Unit::TestCase
