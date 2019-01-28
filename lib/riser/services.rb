@@ -213,36 +213,36 @@ module Riser
     end
     private :get_druby_service
 
-    def get_service(name)
-      case (@service_names[name])
-      when :any
-        get_druby_service(name, @mutex.synchronize{ @random.rand })
-      when :single
-        get_druby_service(name, name)
-      when :sticky
-        raise ArgumentError, "a sticky process service needs for a stickiness key: #{name}"
-      else
-        raise KeyError, "not found a service: #{name}"
-      end
+    def get_any_process_service(name)
+      get_druby_service(name, @mutex.synchronize{ @random.rand })
     end
+    private :get_any_process_service
+
+    def get_single_process_service(name)
+      get_druby_service(name, name)
+    end
+    private :get_single_process_service
 
     def get_sticky_process_service(name, stickiness_key)
+      get_druby_service(name, stickiness_key)
+    end
+    private :get_sticky_process_service
+
+    def get_service(name, *optional)
       case (@service_names[name])
+      when :any
+        get_any_process_service(name, *optional)
+      when :single
+        get_single_process_service(name, *optional)
       when :sticky
-        get_druby_service(name, stickiness_key)
-      when :any, :single
-        raise ArgumentError, "not a sticky process service: #{name}"
+        get_sticky_process_service(name, *optional)
       else
         raise KeyError, "not found a service: #{name}"
       end
     end
 
-    def [](name, stickiness_key=nil)
-      if (stickiness_key.nil?) then
-        get_service(name)
-      else
-        get_sticky_process_service(name, stickiness_key)
-      end
+    def [](name, *optional)
+      get_service(name, *optional)
     end
   end
 
@@ -314,28 +314,30 @@ module Riser
       nil
     end
 
-    def get_service(name)
-      if (@services.key? name) then
-        case (@services[name].process_type)
-        when :any, :single
-          @services[name].front
-        when :sticky
-          raise ArgumentError, "a sticky process service needs for a stickiness key: #{name}"
-        else
-          raise "internal error: (service_name,process_type)=(#{name},#{@services[name].process_type})"
-        end
-      else
-        raise KeyError, "not found a service: #{name}"
-      end
+    def get_any_process_service(name)
+      @services[name].front
     end
+    private :get_any_process_service
+
+    def get_single_process_service(name)
+      @services[name].front
+    end
+    private :get_single_process_service
 
     def get_sticky_process_service(name, stickiness_key)
+      @services[name].front
+    end
+    private :get_sticky_process_service
+
+    def get_service(name, *optional)
       if (@services.key? name) then
         case (@services[name].process_type)
+        when :any
+          get_any_process_service(name, *optional)
+        when :single
+          get_single_process_service(name, *optional)
         when :sticky
-          @services[name].front
-        when :any, :single
-          raise ArgumentError, "not a sticky process service: #{name}"
+          get_sticky_process_service(name, *optional)
         else
           raise "internal error: (service_name,process_type)=(#{name},#{@services[name].process_type})"
         end
@@ -344,12 +346,8 @@ module Riser
       end
     end
 
-    def [](name, stickiness_key=nil)
-      if (stickiness_key.nil?) then
-        get_service(name)
-      else
-        get_sticky_process_service(name, stickiness_key)
-      end
+    def [](name, *optional)
+      get_service(name, *optional)
     end
 
     def start_server
@@ -446,7 +444,7 @@ module Riser
 
     def_delegators :@services, :add_any_process_service, :add_single_process_service, :add_sticky_process_service
     def_delegator :@services, :start_client, :start
-    def_delegators :@services, :get_service, :get_sticky_process_service, :[]
+    def_delegators :@services, :get_service, :[]
   end
 
   class DRbServices
@@ -490,7 +488,7 @@ module Riser
     def_delegator :@server, :stop, :stop_server
 
     def_delegator :@call, :start, :start_client
-    def_delegators :@call, :get_service, :get_sticky_process_service, :[]
+    def_delegators :@call, :get_service, :[]
   end
 end
 
