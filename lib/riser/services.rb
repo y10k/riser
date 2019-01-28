@@ -145,9 +145,14 @@ module Riser
   class DRbServiceCall
     def initialize
       @mutex = Thread::Mutex.new
-      @service_names = {}
       @druby_call_list = []
+      @service_names = {}
       @random = nil
+    end
+
+    def add_druby_call(uri)
+      @druby_call_list << DRbCall.new(DRbObject.new_with_uri(uri), {})
+      nil
     end
 
     def add_any_process_service(name)
@@ -162,11 +167,6 @@ module Riser
 
     def add_sticky_process_service(name)
       @service_names[name] = :sticky
-      nil
-    end
-
-    def add_druby_call(uri)
-      @druby_call_list << DRbCall.new(DRbObject.new_with_uri(uri), {})
       nil
     end
 
