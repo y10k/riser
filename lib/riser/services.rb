@@ -140,13 +140,17 @@ module Riser
     end
   end
 
-  DRbCall = Struct.new(:there, :service_ref) # :nodoc:
+  DRbCall = Struct.new(:there, :service_ref)                  # :nodoc:
+  DRbAnyProcessService    = Struct.new(:process_type)         # :nodoc:
+  DRbSingleProcessService = Struct.new(:process_type, :index) # :nodoc:
+  DRbStickyProcessService = Struct.new(:process_type)         # :nodoc:
 
   class DRbServiceCall
     def initialize
       @mutex = Thread::Mutex.new
       @druby_call_list = []
-      @service_names = {}
+      @single_process_service_count = 0
+      @services = {}
       @random = nil
     end
 
@@ -156,17 +160,18 @@ module Riser
     end
 
     def add_any_process_service(name)
-      @service_names[name] = :any
+      @services[name] = DRbAnyProcessService.new(:any)
       nil
     end
 
     def add_single_process_service(name)
-      @service_names[name] = :single
+      @services[name] = DRbSingleProcessService.new(:single, @single_process_service_count)
+      @single_process_service_count += 1
       nil
     end
 
     def add_sticky_process_service(name)
-      @service_names[name] = :sticky
+      @services[name] = DRbStickyProcessService.new(:sticky)
       nil
     end
 
@@ -218,7 +223,7 @@ module Riser
     private :get_any_process_service
 
     def get_single_process_service(name)
-      get_druby_service(name, name.hash % @druby_call_list.length)
+      get_druby_service(name, @services[name].index % @druby_call_list.length)
     end
     private :get_single_process_service
 
@@ -228,13 +233,17 @@ module Riser
     private :get_sticky_process_service
 
     def get_service(name, *optional)
-      case (@service_names[name])
-      when :any
-        get_any_process_service(name, *optional)
-      when :single
-        get_single_process_service(name, *optional)
-      when :sticky
-        get_sticky_process_service(name, *optional)
+      if (@services.key? name) then
+        case (@services[name].process_type)
+        when :any
+          get_any_process_service(name, *optional)
+        when :single
+          get_single_process_service(name, *optional)
+        when :sticky
+          get_sticky_process_service(name, *optional)
+        else
+          raise "internal error: (service_name,process_type)=(#{name},#{@services[name].process_type})"
+        end
       else
         raise KeyError, "not found a service: #{name}"
       end
