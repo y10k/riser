@@ -149,9 +149,9 @@ module Riser
     def initialize
       @mutex = Thread::Mutex.new
       @druby_call_list = []
+      @any_process_service_call_count = -1
       @single_process_service_count = 0
       @services = {}
-      @random = nil
     end
 
     def add_druby_call(uri)
@@ -200,7 +200,6 @@ module Riser
     end
 
     def start(timeout_seconds=30, local_druby_uri=Riser::TemporaryPath.make_drbunix_uri, config={ UNIXFileMode: 0600 })
-      @random = Random.new
       unless (DRb.primary_server) then
         DRb.start_service(local_druby_uri, nil, config)
       end
@@ -218,7 +217,10 @@ module Riser
     private :get_druby_service
 
     def get_any_process_service(name)
-      get_druby_service(name, @mutex.synchronize{ @random.rand(@druby_call_list.length) })
+      i = @mutex.synchronize{
+        @any_process_service_call_count = (@any_process_service_call_count + 1) % @druby_call_list.length
+      }
+      get_druby_service(name, i)
     end
     private :get_any_process_service
 
