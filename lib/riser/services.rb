@@ -204,9 +204,8 @@ module Riser
       nil
     end
 
-    def get_druby_service(name, stickiness_key)
-      i = stickiness_key.hash % @druby_call_list.length
-      druby_call = @druby_call_list[i]
+    def get_druby_service(name, index)
+      druby_call = @druby_call_list[index]
       @mutex.synchronize{
         druby_call.service_ref[name] ||= druby_call.there.get_service(name)
       }
@@ -214,17 +213,17 @@ module Riser
     private :get_druby_service
 
     def get_any_process_service(name)
-      get_druby_service(name, @mutex.synchronize{ @random.rand })
+      get_druby_service(name, @mutex.synchronize{ @random.rand(@druby_call_list.length) })
     end
     private :get_any_process_service
 
     def get_single_process_service(name)
-      get_druby_service(name, name)
+      get_druby_service(name, name.hash % @druby_call_list.length)
     end
     private :get_single_process_service
 
     def get_sticky_process_service(name, stickiness_key)
-      get_druby_service(name, stickiness_key)
+      get_druby_service(name, stickiness_key.hash % @druby_call_list.length)
     end
     private :get_sticky_process_service
 
