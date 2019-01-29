@@ -140,10 +140,10 @@ module Riser
     end
   end
 
-  DRbCall = Struct.new(:there, :service_ref)                  # :nodoc:
-  DRbAnyProcessService    = Struct.new(:process_type)         # :nodoc:
-  DRbSingleProcessService = Struct.new(:process_type, :index) # :nodoc:
-  DRbStickyProcessService = Struct.new(:process_type)         # :nodoc:
+  DRbCall = Struct.new(:there, :service_ref)                             # :nodoc:
+  DRbAnyProcessService    = Struct.new(:process_type, :callable)         # :nodoc:
+  DRbSingleProcessService = Struct.new(:process_type, :callable, :index) # :nodoc:
+  DRbStickyProcessService = Struct.new(:process_type, :callable)         # :nodoc:
 
   class DRbServiceCall
     def initialize
@@ -159,19 +159,45 @@ module Riser
       nil
     end
 
-    def add_any_process_service(name)
-      @services[name] = DRbAnyProcessService.new(:any)
+    def add_any_process_service(name, callable=false)
+      @services[name] = DRbAnyProcessService.new(:any, callable)
       nil
     end
 
-    def add_single_process_service(name)
-      @services[name] = DRbSingleProcessService.new(:single, @single_process_service_count)
+    def add_single_process_service(name, callable=false)
+      @services[name] = DRbSingleProcessService.new(:single, callable, @single_process_service_count)
       @single_process_service_count += 1
       nil
     end
 
-    def add_sticky_process_service(name)
-      @services[name] = DRbStickyProcessService.new(:sticky)
+    def add_sticky_process_service(name, callable=false)
+      @services[name] = DRbStickyProcessService.new(:sticky, callable)
+      nil
+    end
+
+    def self.is_callable(type_or_object)
+      case (type_or_object)
+      when Class
+        object_type = type_or_object
+        object_type.method_defined? :call
+      else
+        object = type_or_object
+        object.respond_to? :call
+      end
+    end
+
+    def add_any_process_service_with_type(name, type_or_object)
+      add_any_process_service(name, DRbServiceCall.is_callable(type_or_object))
+      nil
+    end
+
+    def add_single_process_service_with_type(name, type_or_object)
+      add_single_process_service(name, DRbServiceCall.is_callable(type_or_object))
+      nil
+    end
+
+    def add_sticky_process_service_with_type(name, type_or_object)
+      add_sticky_process_service(name, DRbServiceCall.is_callable(type_or_object))
       nil
     end
 
@@ -249,12 +275,52 @@ module Riser
       end
     end
 
-    def [](name, *optional)
-      get_service(name, *optional)
+    def call_any_process_service(name, *optional, &block)
+      get_any_process_service(name).call(*optional, &block)
+    end
+    private :call_any_process_service
+
+    def call_single_process_service(name, *optional, &block)
+      get_single_process_service(name).call(*optional, &block)
+    end
+    private :call_single_process_service
+
+    def call_sticky_process_service(name, stickiness_key, *optional, &block)
+      get_sticky_process_service(name, stickiness_key).call(stickiness_key, *optional, &block)
+    end
+    private :call_sticky_process_service
+
+    def call_service(name, *optional, &block)
+      if (@services.key? name) then
+        case (@services[name].process_type)
+        when :any
+          call_any_process_service(name, *optional, &block)
+        when :single
+          call_single_process_service(name, *optional, &block)
+        when :sticky
+          call_sticky_process_service(name, *optional, &block)
+        else
+          raise "internal error: (service_name,process_type)=(#{name},#{@services[name].process_type})"
+        end
+      else
+        raise KeyError, "not found a service: #{name}"
+      end
+    end
+
+    def [](name, *optional, &block)
+      if (@services.key? name) then
+        if (@services[name].callable) then
+          call_service(name, *optional, &block)
+        else
+          get_service(name, *optional)
+        end
+      else
+        raise KeyError, "not found a service: #{name}"
+      end
     end
   end
 
-  LocalService = Struct.new(:front, :preprocess, :postprocess, :process_type) # :nodoc:
+  LocalService = Struct.new(:front, :preprocess, :postprocess, :process_type, :callable) # :nodoc:
 
   class LocalServiceServerClient
     def initialize
@@ -307,18 +373,36 @@ module Riser
     end
     private :apply_service_hooks
 
-    def add_any_process_service(name)
+    def add_any_process_service(name, callable=false)
       @services[name].process_type = :any
+      @services[name].callable = callable
       nil
     end
 
-    def add_single_process_service(name)
+    def add_single_process_service(name, callable=false)
       @services[name].process_type = :single
+      @services[name].callable = callable
       nil
     end
 
-    def add_sticky_process_service(name)
+    def add_sticky_process_service(name, callable=false)
       @services[name].process_type = :sticky
+      @services[name].callable = callable
+      nil
+    end
+
+    def add_any_process_service_with_type(name, type_or_object)
+      add_any_process_service(name, DRbServiceCall.is_callable(type_or_object))
+      nil
+    end
+
+    def add_single_process_service_with_type(name, type_or_object)
+      add_single_process_service(name, DRbServiceCall.is_callable(type_or_object))
+      nil
+    end
+
+    def add_sticky_process_service_with_type(name, type_or_object)
+      add_sticky_process_service(name, DRbServiceCall.is_callable(type_or_object))
       nil
     end
 
@@ -354,8 +438,48 @@ module Riser
       end
     end
 
-    def [](name, *optional)
-      get_service(name, *optional)
+    def call_any_process_service(name, *optional, &block)
+      get_any_process_service(name).call(*optional, &block)
+    end
+    private :call_any_process_service
+
+    def call_single_process_service(name, *optional, &block)
+      get_single_process_service(name).call(*optional, &block)
+    end
+    private :call_single_process_service
+
+    def call_sticky_process_service(name, stickiness_key, *optional, &block)
+      get_sticky_process_service(name, stickiness_key).call(stickiness_key, *optional, &block)
+    end
+    private :call_sticky_process_service
+
+    def call_service(name, *optional, &block)
+      if (@services.key? name) then
+        case (@services[name].process_type)
+        when :any
+          call_any_process_service(name, *optional, &block)
+        when :single
+          call_single_process_service(name, *optional, &block)
+        when :sticky
+          call_sticky_process_service(name, *optional, &block)
+        else
+          raise "internal error: (service_name,process_type)=(#{name},#{@services[name].process_type})"
+        end
+      else
+        raise KeyError, "not found a service: #{name}"
+      end
+    end
+
+    def [](name, *optional, &block)
+      if (@services.key? name) then
+        if (@services[name].callable) then
+          call_service(name, *optional, &block)
+        else
+          get_service(name, *optional)
+        end
+      else
+        raise KeyError, "not found a service: #{name}"
+      end
     end
 
     def start_server
@@ -451,8 +575,9 @@ module Riser
     end
 
     def_delegators :@services, :add_any_process_service, :add_single_process_service, :add_sticky_process_service
+    def_delegators :@services, :add_any_process_service_with_type, :add_single_process_service_with_type, :add_sticky_process_service_with_type
     def_delegator :@services, :start_client, :start
-    def_delegators :@services, :get_service, :[]
+    def_delegators :@services, :get_service, :call_service, :[]
   end
 
   class DRbServices
@@ -474,19 +599,19 @@ module Riser
 
     def add_any_process_service(name, front)
       @server.add_service(name, front)
-      @call.add_any_process_service(name)
+      @call.add_any_process_service_with_type(name, front)
       nil
     end
 
     def add_single_process_service(name, front)
       @server.add_service(name, front)
-      @call.add_single_process_service(name)
+      @call.add_single_process_service_with_type(name, front)
       nil
     end
 
     def add_sticky_process_service(name, front)
       @server.add_service(name, front)
-      @call.add_sticky_process_service(name)
+      @call.add_sticky_process_service_with_type(name, front)
       nil
     end
 
@@ -496,7 +621,7 @@ module Riser
     def_delegator :@server, :stop, :stop_server
 
     def_delegator :@call, :start, :start_client
-    def_delegators :@call, :get_service, :[]
+    def_delegators :@call, :get_service, :call_service, :[]
   end
 end
 

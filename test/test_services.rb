@@ -24,9 +24,14 @@ module Riser::Test
     end
 
     def succ!(user)
-      @mutex.synchronize{
+      count = @mutex.synchronize{
         @count[user] += 1
       }
+      if (block_given?) then
+        yield(count)
+      else
+        count
+      end
     end
 
     def get(user)
@@ -43,6 +48,23 @@ module Riser::Test
       end
     end
     module_function :repeat
+  end
+
+  class DRbServiceCallTest < Test::Unit::TestCase
+    data('class:Proc'      => Proc,
+         'class:Method'    => Method,
+         'instance:proc'   => proc{},
+         'instance:lambda' => lambda{},
+         'instance:method' => Object.new.method(:inspect))
+    def test_is_callable(data)
+      assert_equal(true, Riser::DRbServiceCall.is_callable(data))
+    end
+
+    data('class:Object'    => Object,
+         'instance:object' => Object.new)
+    def test_is_not_callable(data)
+      assert_equal(false, Riser::DRbServiceCall.is_callable(data))
+    end
   end
 
   class DRbServicesTest < Test::Unit::TestCase
@@ -230,6 +252,174 @@ module Riser::Test
         @services.stop_server
       end
     end
+
+    def test_procedure_any_process_service
+      @services.add_any_process_service(:fib, proc{|n| Fib.fib(n) })
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal(0,   @services[:fib, 0])
+        assert_equal(1,   @services[:fib, 1])
+        assert_equal(1,   @services[:fib, 2])
+        assert_equal(2,   @services[:fib, 3])
+        assert_equal(3,   @services[:fib, 4])
+        assert_equal(5,   @services[:fib, 5])
+        assert_equal(8,   @services[:fib, 6])
+        assert_equal(13,  @services[:fib, 7])
+        assert_equal(21,  @services[:fib, 8])
+        assert_equal(34,  @services[:fib, 9])
+        assert_equal(55,  @services[:fib, 10])
+        assert_equal(89,  @services[:fib, 11])
+        assert_equal(144, @services[:fib, 12])
+        assert_equal(233, @services[:fib, 13])
+        assert_equal(377, @services[:fib, 14])
+        assert_equal(610, @services[:fib, 15])
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_single_process_service
+      @services.add_single_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+
+        assert_equal(1, @services[:succ!, 'alice'])
+        assert_equal(2, @services[:succ!, 'alice'])
+        assert_equal(3, @services[:succ!, 'alice'])
+
+        assert_equal(1, @services[:succ!, 'bob'])
+        assert_equal(2, @services[:succ!, 'bob'])
+
+        assert_equal(4, @services[:succ!, 'alice'])
+        assert_equal(5, @services[:succ!, 'alice'])
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_sticky_process_service
+      @services.add_sticky_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+
+        assert_equal(1, @services[:succ!, 'alice'])
+        assert_equal(2, @services[:succ!, 'alice'])
+        assert_equal(3, @services[:succ!, 'alice'])
+
+        assert_equal(1, @services[:succ!, 'bob'])
+        assert_equal(2, @services[:succ!, 'bob'])
+
+        assert_equal(4, @services[:succ!, 'alice'])
+        assert_equal(5, @services[:succ!, 'alice'])
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_block_any_process_service
+      @services.add_any_process_service(:repeat, Repeat.method(:repeat))
+      @services.start_server
+      begin
+        @services.start_client
+        count = 0
+        @services[:repeat, 2] { count += 1 }
+        @services[:repeat, 3] { count += 1 }
+        assert_equal(5, count)
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_block_single_process_service
+      @services.add_single_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+        calls = 0
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(3, count)
+        }
+
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(4, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(5, count)
+        }
+
+        assert_equal(7, calls)
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_sticky_single_process_service
+      @services.add_sticky_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+        calls = 0
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(3, count)
+        }
+
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(4, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(5, count)
+        }
+
+        assert_equal(7, calls)
+      ensure
+        @services.stop_server
+      end
+    end
   end
 
   class LocalServicesTest < Test::Unit::TestCase
@@ -402,6 +592,174 @@ module Riser::Test
         @services[:block, 'alice'].repeat(2) { count += 1 }
         @services[:block, 'alice'].repeat(3) { count += 1 }
         assert_equal(5, count)
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_any_process_service
+      @services.add_any_process_service(:fib, proc{|n| Fib.fib(n) })
+      @services.start_server
+      begin
+        @services.start_client
+        assert_equal(0,   @services[:fib, 0])
+        assert_equal(1,   @services[:fib, 1])
+        assert_equal(1,   @services[:fib, 2])
+        assert_equal(2,   @services[:fib, 3])
+        assert_equal(3,   @services[:fib, 4])
+        assert_equal(5,   @services[:fib, 5])
+        assert_equal(8,   @services[:fib, 6])
+        assert_equal(13,  @services[:fib, 7])
+        assert_equal(21,  @services[:fib, 8])
+        assert_equal(34,  @services[:fib, 9])
+        assert_equal(55,  @services[:fib, 10])
+        assert_equal(89,  @services[:fib, 11])
+        assert_equal(144, @services[:fib, 12])
+        assert_equal(233, @services[:fib, 13])
+        assert_equal(377, @services[:fib, 14])
+        assert_equal(610, @services[:fib, 15])
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_single_process_service
+      @services.add_single_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+
+        assert_equal(1, @services[:succ!, 'alice'])
+        assert_equal(2, @services[:succ!, 'alice'])
+        assert_equal(3, @services[:succ!, 'alice'])
+
+        assert_equal(1, @services[:succ!, 'bob'])
+        assert_equal(2, @services[:succ!, 'bob'])
+
+        assert_equal(4, @services[:succ!, 'alice'])
+        assert_equal(5, @services[:succ!, 'alice'])
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_sticky_process_service
+      @services.add_sticky_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+
+        assert_equal(1, @services[:succ!, 'alice'])
+        assert_equal(2, @services[:succ!, 'alice'])
+        assert_equal(3, @services[:succ!, 'alice'])
+
+        assert_equal(1, @services[:succ!, 'bob'])
+        assert_equal(2, @services[:succ!, 'bob'])
+
+        assert_equal(4, @services[:succ!, 'alice'])
+        assert_equal(5, @services[:succ!, 'alice'])
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_block_any_process_service
+      @services.add_any_process_service(:repeat, Repeat.method(:repeat))
+      @services.start_server
+      begin
+        @services.start_client
+        count = 0
+        @services[:repeat, 2] { count += 1 }
+        @services[:repeat, 3] { count += 1 }
+        assert_equal(5, count)
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_block_single_process_service
+      @services.add_single_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+        calls = 0
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(3, count)
+        }
+
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(4, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(5, count)
+        }
+
+        assert_equal(7, calls)
+      ensure
+        @services.stop_server
+      end
+    end
+
+    def test_procedure_sticky_single_process_service
+      @services.add_sticky_process_service(:succ!, Count.new.method(:succ!))
+      @services.start_server
+      begin
+        @services.start_client
+        calls = 0
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(3, count)
+        }
+
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(1, count)
+        }
+        @services[:succ!, 'bob'] {|count|
+          calls += 1
+          assert_equal(2, count)
+        }
+
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(4, count)
+        }
+        @services[:succ!, 'alice'] {|count|
+          calls += 1
+          assert_equal(5, count)
+        }
+
+        assert_equal(7, calls)
       ensure
         @services.stop_server
       end
