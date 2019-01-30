@@ -16,7 +16,7 @@ module Riser
     end
 
     def ping
-      'pong'
+      yield
     end
 
     def add_service(name, front)
@@ -180,7 +180,7 @@ module Riser
 
       for druby_call in @druby_call_list
         begin
-          druby_call.there.ping
+          druby_call.there.ping{ 'pong' }
         rescue DRb::DRbConnError
           if (Time.now - t0 >= timeout_seconds) then
             raise
