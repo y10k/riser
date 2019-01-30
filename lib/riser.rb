@@ -10,6 +10,7 @@ module Riser
   autoload :LoggingStream, 'riser/stream'
   autoload :ReadPoll, 'riser/poll'
   autoload :Resource, 'riser/resource'
+  autoload :ResourceSet, 'riser/resource'
   autoload :RootProcess, 'riser/daemon'
   autoload :ServerSignal, 'riser/server'
   autoload :SocketAddress, 'riser/server'
