@@ -54,6 +54,51 @@ module Riser::Test
       assert_equal(false, resource.ref_object?)
     end
 
+    def test_resource_unref_dup
+      @build.at_create{
+        @recorder.call('at_create')
+        Array.new
+      }
+      @build.at_destroy{
+        @recorder.call('at_destroy')
+      }
+      resource = @build.call
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(0, resource.ref_count)
+      assert_equal(0, resource.proxy_count)
+      assert_equal(false, resource.ref_object?)
+
+      array = resource.call
+      assert_equal(%w[ at_create ], @recorder.get_memory_records)
+      assert_equal(1, resource.ref_count)
+      assert_equal(1, resource.proxy_count)
+      assert_equal(true, resource.ref_object?)
+
+      assert_equal(0, array.length)
+
+      array << :foo
+      array << :bar
+      array << :baz
+
+      assert_equal(3, array.length)
+      assert_equal(:foo, array[0])
+      assert_equal(:bar, array[1])
+      assert_equal(:baz, array[2])
+
+      array.__unref__
+      assert_equal(%w[ at_create at_destroy ], @recorder.get_memory_records)
+      assert_equal(0, resource.ref_count)
+      assert_equal(0, resource.proxy_count)
+      assert_equal(false, resource.ref_object?)
+
+      array.__unref__           # no effect
+      assert_equal(%w[ at_create at_destroy ], @recorder.get_memory_records)
+      assert_equal(0, resource.ref_count)
+      assert_equal(0, resource.proxy_count)
+      assert_equal(false, resource.ref_object?)
+    end
+
     def test_resource_alias_unref
       @build.at_create{
         @recorder.call('at_create')
@@ -191,6 +236,47 @@ module Riser::Test
         assert_equal('alice', alice[0])
       }
 
+      assert_equal(%w[ at_create:alice at_destroy:alice ], @recorder.get_memory_records)
+      assert_equal(0, resource_set.key_count)
+      assert_equal(0, resource_set.ref_count('alice'))
+      assert_equal(0, resource_set.proxy_count)
+      assert_equal(false, (resource_set.ref_object? 'alice'))
+    end
+
+    def test_resource_set_unref_dup
+      @build.at_create{|key|
+        @recorder.call("at_create:#{key}")
+        Array[key]
+      }
+      @build.at_destroy{|a|
+        @recorder.call("at_destroy:#{a[0]}")
+      }
+      resource_set = @build.call
+
+      assert_equal([], @recorder.get_memory_records)
+      assert_equal(0, resource_set.key_count)
+      assert_equal(0, resource_set.ref_count('alice'))
+      assert_equal(0, resource_set.proxy_count)
+      assert_equal(false, (resource_set.ref_object? 'alice'))
+
+      alice = resource_set.call('alice')
+      assert_equal(%w[ at_create:alice ], @recorder.get_memory_records)
+      assert_equal(1, resource_set.key_count)
+      assert_equal(1, resource_set.ref_count('alice'))
+      assert_equal(1, resource_set.proxy_count)
+      assert_equal(true, (resource_set.ref_object? 'alice'))
+
+      assert_equal(1, alice.length)
+      assert_equal('alice', alice[0])
+
+      alice.__unref__
+      assert_equal(%w[ at_create:alice at_destroy:alice ], @recorder.get_memory_records)
+      assert_equal(0, resource_set.key_count)
+      assert_equal(0, resource_set.ref_count('alice'))
+      assert_equal(0, resource_set.proxy_count)
+      assert_equal(false, (resource_set.ref_object? 'alice'))
+
+      alice.__unref__           # no effect
       assert_equal(%w[ at_create:alice at_destroy:alice ], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
       assert_equal(0, resource_set.ref_count('alice'))
