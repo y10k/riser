@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'fileutils'
 require 'riser'
 require 'riser/test'
 require 'test/unit'
@@ -773,13 +772,11 @@ module Riser::Test
       @services.add_any_process_service(:test1, @test_obj[0])
       @services.add_single_process_service(:test2, @test_obj[1])
       @services.add_sticky_process_service(:test3, @test_obj[2])
-
-      @store_path = 'recorder_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('drb_services_hook_test')
     end
 
     def teardown
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def test_hooks_one_service
@@ -1050,13 +1047,11 @@ module Riser::Test
       @druby_process_num = 4
       @services = Riser::DRbServices.new(@druby_process_num)
       @services.add_any_process_service(:test, @test_obj)
-
-      @store_path = 'recorder_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('drb_services_hook_process_test')
     end
 
     def teardown
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def test_hooks
@@ -1102,14 +1097,12 @@ module Riser::Test
       @services.add_any_process_service(:test1, @test_obj[0])
       @services.add_single_process_service(:test2, @test_obj[1])
       @services.add_sticky_process_service(:test3, @test_obj[2])
-
-      @store_path = 'recorder_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('local_services_hook_test')
     end
 
     def teardown
       Thread.report_on_exception = @thread_report_on_exception
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def test_hooks_one_service

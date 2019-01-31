@@ -221,8 +221,7 @@ module Riser::Test
       @server_timeout_seconds = 10
       @server_start_wait_path = 'socket_server_start'
       @server = Riser::SocketServer.new
-      @store_path = 'socket_server_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('thread_socket_server_test')
     end
 
     def start_server
@@ -269,7 +268,7 @@ module Riser::Test
 
       FileUtils.rm_f(@unix_socket_path)
       FileUtils.rm_f(@server_start_wait_path)
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def connect_server
@@ -592,8 +591,7 @@ module Riser::Test
       @server_start_wait_path = 'socket_server_start'
       @server = Riser::SocketServer.new
       @server.process_num = 1
-      @store_path = 'socket_server_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('process_socket_server_test')
     end
 
     def start_server
@@ -640,7 +638,7 @@ module Riser::Test
 
       FileUtils.rm_f(@unix_socket_path)
       FileUtils.rm_f(@server_start_wait_path)
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def connect_server
