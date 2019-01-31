@@ -82,8 +82,7 @@ module Riser::Test
       @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL.succ
       @dt = 0.001
       @daemon_start_wait_path = 'root_process_start'
-      @store_path = 'daemon_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('daemon_test')
     end
 
     def start_daemon(*args, &block)
@@ -135,7 +134,7 @@ module Riser::Test
 
       FileUtils.rm_f(@unix_socket_path)
       FileUtils.rm_f(@daemon_start_wait_path)
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def connect_server
