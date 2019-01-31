@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+require 'fileutils'
+
 module Riser
   module Test
     class CallRecorder
@@ -24,6 +26,11 @@ module Riser
         else
           []
         end
+      end
+
+      def dispose
+        @memory_records.clear
+        FileUtils.rm_f(@file_records)
       end
     end
   end

@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'fileutils'
 require 'riser'
 require 'riser/test'
 require 'test/unit'
@@ -8,12 +7,11 @@ require 'test/unit'
 module Riser::Test
   class CallRecorderTest < Test::Unit::TestCase
     def setup
-      @store_path = 'recorder_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('recorder_test')
     end
 
     def teardown
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def test_call
