@@ -15,7 +15,7 @@ module Riser
         @destroy = destroy
         @ref_count = 0
         @ref_object = nil
-        @ref_proxy = {}         # to make proxy objects living in dRuby process
+        @ref_proxy = {}         # to keep proxy objects living in dRuby process
       end
 
       def ref_count
@@ -203,7 +203,7 @@ module Riser
         @create = create
         @destroy = destroy
         @ref_table = {}
-        @ref_proxy = {}         # to make proxy objects living in dRuby process
+        @ref_proxy = {}         # to keep proxy objects living in dRuby process
       end
 
       def key_count
