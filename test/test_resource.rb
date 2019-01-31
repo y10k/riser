@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-require 'fileutils'
 require 'riser'
 require 'riser/test'
 require 'test/unit'
@@ -9,12 +8,11 @@ module Riser::Test
   class ResurceTest < Test::Unit::TestCase
     def setup
       @build = Riser::Resource::Builder.new
-      @store_path = 'resource_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('resource_test')
     end
 
     def teardown
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def test_resource
@@ -159,12 +157,11 @@ module Riser::Test
   class ResourceSetTest < Test::Unit::TestCase
     def setup
       @build = Riser::ResourceSet::Builder.new
-      @store_path = 'resource_set_test'
-      @recorder = CallRecorder.new(@store_path)
+      @recorder = CallRecorder.new('resource_set_test')
     end
 
     def teardown
-      FileUtils.rm_f(@store_path)
+      @recorder.dispose
     end
 
     def test_resource_set
