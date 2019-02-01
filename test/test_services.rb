@@ -376,7 +376,7 @@ module Riser::Test
       end
     end
 
-    def test_procedure_sticky_single_process_service
+    def test_procedure_block_sticky_process_service
       @services.add_sticky_process_service(:succ!, Count.new.method(:succ!))
       @services.start_server
       begin
@@ -720,7 +720,7 @@ module Riser::Test
       end
     end
 
-    def test_procedure_sticky_single_process_service
+    def test_procedure_block_sticky_process_service
       @services.add_sticky_process_service(:succ!, Count.new.method(:succ!))
       @services.start_server
       begin
