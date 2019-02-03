@@ -154,6 +154,72 @@ such as `thread_num`.  See the source code
 ([server.rb/Riser::SocketServer](https://github.com/y10k/riser/blob/master/lib/riser/server.rb))
 for details of other attributes.
 
+### Daemon
+
+Riser provids the function to daemonize servers.  By daemonizing the
+server, the server will be able to receive signal(2)s and restart.  An
+example of a simple daemon is as follows.
+
+```ruby
+require 'riser'
+
+Riser::Daemon.start_daemon(daemonize: true,
+                           daemon_name: 'simple_daemon',
+                           status_file: 'simple_daemon.pid',
+                           listen_address: 'localhost:5000'
+                          ) {|server|
+
+  server.dispatch{|socket|
+    while (line = socket.gets)
+      socket.write(line)
+    end
+  }
+}
+```
+
+To daemonize the server, use the module function of
+`Riser::Daemon.start_daemon`.  The `start_daemon` function takes
+parameters in a hash table and works.  The works of `start_daemon` are
+as follows.
+
+1. Daemonize the server process (`daemonize: true`).
+2. Output syslog(2) identified with `simple_daemon`
+   (`daemon_name: 'simple_daemon'`).
+3. Output process id to the file of `simple_daemon.pid` and lock it
+   exclusively (`status_file: 'simple_daemon.pid'`).
+4. Open the tcp/ip server socket of `localhost:5000`
+   (`listen_address: 'localhost:5000'`).
+5. Create a server object and pass it to the block, and you set up the
+   server object in the block, then `start` the server object.
+
+A command prompt is displayed as soon as you start the daemon, but the
+daemon runs in the background and logs to syslog(2).  Daemonization is
+the result of `daemonaize: true`.  If `daemonaize: false` is set, the
+process is not daemonized, starts in foreground and logs to standard
+output.  This is useful for debugging daemon.
+
+Looking at the process of the daemon with `pstree` command is as
+follows.
+
+```
+$ pstree -ap
+init,1 ro
+  |-ruby,32187 simple_daemon.rb
+  |   `-ruby,32188 simple_daemon.rb
+  |       |-{ruby},32189
+  |       |-{ruby},32190
+  |       |-{ruby},32191
+  |       `-{ruby},32192
+...
+```
+
+The daemon process is running as the parent of the server process.
+And the daemon process is running independently under the init(8)
+process.  The daemon process monitors the server process and restarts
+when the server process dies.  Also, the daemon process receives some
+signal(2)s and stops or restarts the server process, and does other
+things.
+
 Development
 -----------
 
