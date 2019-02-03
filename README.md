@@ -271,6 +271,23 @@ For a example of how to use callbacks, see the source code of the
 '[halo.rb](https://github.com/y10k/riser/blob/master/example/halo.rb)'
 example.
 
+### Server Utilities
+
+Riser provides some useful utilities to  write a server.
+
+|utility                   |description              |
+|--------------------------|-------------------------|
+|`Riser::ReadPoll`         |monitor I/O timeout.     |
+|`Riser::WriteBufferStream`|buffer I/O writes.       |
+|`Riser::LoggingStream`    |log I/O read / write.    |
+
+For a example of how to use utilities, see the source code of the
+'[halo.rb](https://github.com/y10k/riser/blob/master/example/halo.rb)'
+example.  Also utilities are simple, so check the source codes of
+'[poll.rb](https://github.com/y10k/riser/blob/master/lib/riser/poll.rb)'
+and
+'[stream.rb](https://github.com/y10k/riser/blob/master/lib/riser/stream.rb)'.
+
 ### DRb Services
 
 ### Resource and ResouceSet
