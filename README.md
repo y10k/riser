@@ -244,6 +244,33 @@ for details of other parameters.
 
 ### Server Callbacks
 
+The server object is able to register callbacks other than `dispatch`.
+The list of server objects' callbacks is as follows.
+
+|callback                           |description                                                                                                  |
+|-----------------------------------|-------------------------------------------------------------------------------------------------------------|
+|`before_start{|server_socket| ...}`|performed before starting the server. in a multi-process server, it is performed in the parent process.      |
+|`at_fork{ ... }`                   |performed after fork(2)ing on the multi-process server. it is performed in the child process.                |
+|`at_stop{|stop_state| ... }`       |performed when a stop signal(2) is received. in a multi-process server, it is performed in the child process.|
+|`at_stat{|stat_info| ... }`        |performed when 'get stat' signal(2) is received.                                                             |
+|`preprocess{ ... }`                |performed before starting 'dispatch loop'. in a multi-process server, it is performed in the child process.  |
+|`postprocess{ ... }`               |performed after 'dispatch loop' is finished. in a multi-process server, it is performed in the child process.|
+|`after_stop{ ... }`                |performed after the server stop. in a multi-process server, it is performed in the parent process.           |
+|`dispatch{|socket| ... }`          |known dispatch callback. in a multi-process server, it is performed in the child process.                    |
+
+It seems necessary to explain the `at_stat` callback.  Riser uses
+queues to distribute connections to threads and processes, and it is
+possible to get statistics information on queues.  With `USR1` and
+`USR2` signal(2)s, you can start collecting queue statistics
+information and get it.  At that time the `at_stat` callback is called
+and used to write queue statistics informations to log etc.  With the
+`WINCH` signal(2), you can stop collecting queue statistics
+information.
+
+For a example of how to use callbacks, see the source code of the
+'[halo.rb](https://github.com/y10k/riser/blob/master/example/halo.rb)'
+example.
+
 ### DRb Services
 
 ### Resource and ResouceSet
