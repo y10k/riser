@@ -91,6 +91,69 @@ $ pstree -ap
 ...
 ```
 
+### Server Attributes
+
+The server has attributes, and setting attributes changes the behavior
+of the server.  Let's take an example `process_num` attribute.  The
+`process_num` attribute is `0` by default, but by setting it will run
+the server with multi-process.
+
+In the following example, `process_num` is set to `2`.
+Others are the same as simple server example.
+
+```ruby
+require 'riser'
+require 'socket'
+
+server = Riser::SocketServer.new
+server.process_num = 2
+server.dispatch{|socket|
+  while (line = socket.gets)
+    socket.write(line)
+  end
+}
+
+server_socket = TCPServer.new('localhost', 5000)
+server.start(server_socket)
+```
+
+Running the example will hardly change the appearance, but the server
+is running with multi-process.  You can see that the server is running
+in multiple processes with `pstree` command.
+
+```
+$ pstree -ap
+...
+  |   `-bash,23355
+  |       `-ruby,31283 multiproc_server.rb
+  |           |-ruby,31284 multiproc_server.rb
+  |           |   |-{ruby},31285
+  |           |   |-{ruby},31286
+  |           |   |-{ruby},31287
+  |           |   `-{ruby},31288
+  |           |-ruby,31289 multiproc_server.rb
+  |           |   |-{ruby},31292
+  |           |   |-{ruby},31293
+  |           |   |-{ruby},31294
+  |           |   `-{ruby},31295
+  |           |-{ruby},31290
+  |           `-{ruby},31291
+...
+```
+
+There are 2 child processes (`|-ruby`) under the parent process
+(`` `-ruby``) having 2 threads , and 4 threads are running for each
+child process.  The architecture of riser's multi-process server is
+the passing file descriptors between parent-child processes.  The
+parent process accepts the connection and passes it to threads, each
+thread passes the connection to the child process, and `dispatch`
+callback is performed in the thread of each child process.
+
+In addition to `process_num`, the server object has various attributes
+such as `thread_num`.  See the source code
+([server.rb/Riser::SocketServer](https://github.com/y10k/riser/blob/master/lib/riser/server.rb))
+for details of other attributes.
+
 Development
 -----------
 
