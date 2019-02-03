@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 module Riser
-  # restricted I/O framework
   class Stream
     def initialize(io)
       @io = io
