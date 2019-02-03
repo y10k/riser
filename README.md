@@ -220,6 +220,34 @@ when the server process dies.  Also, the daemon process receives some
 signal(2)s and stops or restarts the server process, and does other
 things.
 
+### Signal(2)s and Other Daemon Parameters
+
+By default, the daemon is able to receive the following signal(2)s.
+
+|signal(2)|daemon's action                       |`start_daemon` parameter   |
+|---------|--------------------------------------|---------------------------|
+|`TERM`   |stop server gracefully                |`signal_stop_graceful`     |
+|`INT`    |stop server forcedly                  |`signal_stop_forced`       |
+|`HUP`    |restart server gracefully             |`signal_restart_graceful`  |
+|`QUIT`   |restart server forcedly               |`signal_restart_forced`    |
+|`USR1`   |get queue stat and reset queue stat   |`signal_stat_get_and_reset`|
+|`USR2`   |get queue stat and no reset queue stat|`signal_stat_get_no_reset` |
+|`WINCH`  |stop queue stat                       |`signal_stat_stop`         |
+
+By setting the parameters of the `start_daemon`, you can change the
+signal(2) which triggers the action.  Setting the parameter to `nil`
+will disable the action.  'Queue stat' is explained later.
+
+The `start_daemon` has other parameters.  See the source code
+([daemon.rb/Riser::Daemon::DEFAULT](https://github.com/y10k/riser/blob/master/lib/riser/daemon.rb))
+for details of other parameters.
+
+### Server Callbacks
+
+### DRb Services
+
+### Resource and ResouceSet
+
 Development
 -----------
 
