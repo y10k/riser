@@ -151,7 +151,7 @@ callback is performed in the thread of each child process.
 
 In addition to `process_num`, the server object has various attributes
 such as `thread_num`.  See the source code
-([server.rb/Riser::SocketServer](https://github.com/y10k/riser/blob/master/lib/riser/server.rb))
+([server.rb: Riser::SocketServer](https://github.com/y10k/riser/blob/master/lib/riser/server.rb))
 for details of other attributes.
 
 ### Daemon
@@ -239,7 +239,7 @@ signal(2) which triggers the action.  Setting the parameter to `nil`
 will disable the action.  'Queue stat' is explained later.
 
 The `start_daemon` has other parameters.  See the source code
-([daemon.rb/Riser::Daemon::DEFAULT](https://github.com/y10k/riser/blob/master/lib/riser/daemon.rb))
+([daemon.rb: Riser::Daemon::DEFAULT](https://github.com/y10k/riser/blob/master/lib/riser/daemon.rb))
 for details of other parameters.
 
 ### Server Callbacks
