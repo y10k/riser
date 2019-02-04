@@ -11,7 +11,7 @@ This library is useful for the following.
     - Single process multi-thread
 	- Preforked multi-process multi-thread
 * To make a daemon that wil be controlled by signal(2)s
-* To separate singleton task not divided into multiple processes from
+* To separate the object not divided into multiple processes from
   server process(es) into backend service process
 
 This library supposes that the user is familiar with the unix process
@@ -288,7 +288,201 @@ example.  Also utilities are simple, so check the source codes of
 and
 '[stream.rb](https://github.com/y10k/riser/blob/master/lib/riser/stream.rb)'.
 
-### DRb Services
+### dRuby Services
+
+Riser has a mechanism that runs the object in a separate process from
+the server process.  This mechanism pools the dRuby server processes
+and distributes the object to them in the following 3 patterns.
+
+|pattern       |description                                              |
+|--------------|---------------------------------------------------------|
+|any process   |run the object with a randomly picked process.           |
+|single process|always run the object in the same process.               |
+|sticky process|run the object in the same process for each specific key.|
+
+A simple example of how this mechanism works is as follows.
+
+```ruby
+require 'riser'
+
+Riser::Daemon.start_daemon(daemonize: false,
+                           daemon_name: 'simple_services',
+                           listen_address: 'localhost:8000'
+                          ) {|server|
+
+  services = Riser::DRbServices.new(4)
+  services.add_any_process_service(:pid_any, proc{ $$ })
+  services.add_single_process_service(:pid_single, proc{ $$ })
+  services.add_sticky_process_service(:pid_stickty, proc{|key| $$ })
+
+  server.process_num = 2
+  server.before_start{|server_socket|
+    services.start_server
+  }
+  server.at_fork{
+    services.detach_server
+  }
+  server.preprocess{
+    services.start_client
+  }
+  server.dispatch{|socket|
+    if (line = socket.gets) then
+      method, uri, _version = line.split
+      while (line = socket.gets)
+        line.strip.empty? and break
+      end
+      if (method == 'GET') then
+        socket << "HTTP/1.0 200 OK\r\n"
+        socket << "Content-Type: text/plain\r\n"
+        socket << "\r\n"
+
+        path, query = uri.split('?', 2)
+        case (path)
+        when '/any'
+          socket << 'pid: ' << services.call_service(:pid_any) << "\n"
+        when '/single'
+          socket << 'pid: ' << services.call_service(:pid_single) << "\n"
+        when '/sticky'
+          key = query || 'default'
+          socket << 'key: ' << key << ', pid: ' << services.call_service(:pid_stickty, key) << "\n"
+        else
+          socket << "unknown path: #{path}\n"
+        end
+      end
+    end
+  }
+  server.after_stop{
+    services.stop_server
+  }
+}
+```
+
+`Riser::DRbServices` is the mechanism for distributing objects.  What
+this example does is as follows.
+
+1. Create a object of `Riser::DRbServices` to pool 4 dRuby server
+   processes (`Riser::DRbServices.new(4)`).
+2. Add objects to run in dRuby server process
+   (`add_..._process_service`).  In this example it is added that the
+   procedures that returns the process id to see the process to be
+   distributed the object.
+3. Start dRuby server process with `start_server`.  In the case of a
+   multi-process server, it is necessary to execute `start_server` in
+   the parent process, so it is executed at `before_start` callback.
+4. In the case of a multi-process server, execute `detach_server` at
+   `at_fork` callback to release unnecessary resources in the child
+   process.
+5. Start dRuby client with `start_client`.  In the case of a
+   multi-process server, it is necessary to execute `start_client` in
+   the child process, so it is executed at `preprocess` callback.
+6. Add the processing of the web service at `dispatch` callback.  The
+   procedures added to `Riser::DRbServices` are able to be called by
+   `call_service`.  For object other than procedure, use
+   `get_service`.
+7. Stop dRuby server process with `stop_server`.  In the case of a
+   multi-process server, it is necessary to execute `stop_server` in
+   the parent process, so it is executed at `after_stop` callback.
+
+In this example, you can see the dRuby process distribution with a
+simple web service.  Looking at the process of this example with
+`pstree` command is as follows.
+
+```
+$ pstree -ap
+...
+  |   `-bash,23355
+  |       `-ruby,3177 simple_services.rb
+  |           `-ruby,3178 simple_services.rb
+  |               |-ruby,3179 simple_services.rb
+  |               |   |-{ruby},3180
+  |               |   |-{ruby},3189
+  |               |   `-{ruby},3198
+  |               |-ruby,3181 simple_services.rb
+  |               |   |-{ruby},3182
+  |               |   |-{ruby},3194
+  |               |   `-{ruby},3202
+  |               |-ruby,3183 simple_services.rb
+  |               |   |-{ruby},3184
+  |               |   |-{ruby},3197
+  |               |   `-{ruby},3207
+  |               |-ruby,3185 simple_services.rb
+  |               |   |-{ruby},3186
+  |               |   |-{ruby},3201
+  |               |   `-{ruby},3211
+  |               |-ruby,3187 simple_services.rb
+  |               |   |-{ruby},3188
+  |               |   |-{ruby},3191
+  |               |   |-{ruby},3195
+  |               |   |-{ruby},3199
+  |               |   |-{ruby},3203
+  |               |   |-{ruby},3205
+  |               |   |-{ruby},3206
+  |               |   |-{ruby},3208
+  |               |   `-{ruby},3209
+  |               |-ruby,3190 simple_services.rb
+  |               |   |-{ruby},3196
+  |               |   |-{ruby},3200
+  |               |   |-{ruby},3204
+  |               |   |-{ruby},3210
+  |               |   |-{ruby},3212
+  |               |   |-{ruby},3213
+  |               |   |-{ruby},3214
+  |               |   |-{ruby},3215
+  |               |   `-{ruby},3216
+  |               |-{ruby},3192
+  |               `-{ruby},3193
+...
+```
+
+In addition to the 2 server child processes with many threads, there
+are 4 child processes.  These 4 child processes are dRuby server
+processes.  See the web service's result of 'any process' pattern.
+
+```
+$ curl http://localhost:8000/any
+pid: 3181
+$ curl http://localhost:8000/any
+pid: 3179
+$ curl http://localhost:8000/any
+pid: 3183
+$ curl http://localhost:8000/any
+pid: 3181
+```
+
+In the 'any process' pattern, process ids are dispersed.  Next, see
+the web service's result of 'single process' pattern.
+
+```
+$ curl http://localhost:8000/single
+pid: 3179
+$ curl http://localhost:8000/single
+pid: 3179
+$ curl http://localhost:8000/single
+pid: 3179
+$ curl http://localhost:8000/single
+pid: 3179
+```
+
+In the 'single process' pattern, process id is always same.  Last, see
+the web service's result of 'sticky process' pattern.
+
+```
+$ curl http://localhost:8000/sticky
+key: default, pid: 3181
+$ curl http://localhost:8000/sticky
+key: default, pid: 3181
+$ curl http://localhost:8000/sticky?foo
+key: foo, pid: 3179
+$ curl http://localhost:8000/sticky?foo
+key: foo, pid: 3179
+$ curl http://localhost:8000/sticky?bar
+key: bar, pid: 3185
+$ curl http://localhost:8000/sticky?bar
+key: bar, pid: 3185
+```
+
+In the 'sticky process' pattern, the same process id will be given for
+each key.
 
 ### Resource and ResouceSet
 
