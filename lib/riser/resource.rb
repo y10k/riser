@@ -171,9 +171,9 @@ module Riser
     end
 
     def self.build
-      build = Builder.new
-      yield(build)
-      build.call
+      builder = Builder.new
+      yield(builder)
+      builder.call
     end
 
     extend Forwardable
@@ -350,9 +350,9 @@ module Riser
     end
 
     def self.build
-      build = Builder.new
-      yield(build)
-      build.call
+      builder = Builder.new
+      yield(builder)
+      builder.call
     end
 
     extend Forwardable
