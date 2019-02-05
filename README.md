@@ -1,16 +1,16 @@
 Riser
 =====
 
-RISER is a library of **R**uby **I**nfrastructure for cooperative
+**RISER** is a library of **R**uby **I**nfrastructure for cooperative
 multi-thread/multi-process **SER**ver.
 
 This library is useful for the following.
 
 * To make a server with tcp/ip or unix domain socket
-* To choose a method to execute server from:
+* To select a method to execute server from:
     - Single process multi-thread
-	- Preforked multi-process multi-thread
-* To make a daemon that wil be controlled by signal(2)s
+    - Preforked multi-process multi-thread
+* To make a daemon that will be controlled by signal(2)s
 * To separate the object not divided into multiple processes from
   server process(es) into backend service process
 
