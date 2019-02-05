@@ -24,16 +24,16 @@ module Riser
       nil
     end
 
-    def at_fork(name, &block)
+    def at_fork(name, &block)   # :yields: service_front
       @services[name].at_fork = block
       nil
     end
 
-    def preprocess(name, &block)
+    def preprocess(name, &block) # :yields: service_front
       @services[name].preprocess = block
     end
 
-    def postprocess(name, &block)
+    def postprocess(name, &block) # :yields: service_front
       @services[name].postprocess = block
       nil
     end
@@ -338,12 +338,12 @@ module Riser
       nil
     end
 
-    def preprocess(name, &block)
+    def preprocess(name, &block) # :yields: service_front
       @services[name].preprocess = block
       nil
     end
 
-    def postprocess(name, &block)
+    def postprocess(name, &block) # :yields: service_front
       @services[name].postprocess = block
       nil
     end

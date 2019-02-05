@@ -148,7 +148,7 @@ module Riser
         @unref_alias_set = Set.new
       end
 
-      def at_create(&block)
+      def at_create(&block)     # :yields:
         @create = block
         nil
       end
