@@ -484,6 +484,127 @@ key: bar, pid: 3185
 In the 'sticky process' pattern, the same process id will be given for
 each key.
 
+### Local Services
+
+Since dRuby's remote process call has overhead, riser is able to
+transparently switch `Riser::DRbServices` to local process call.  An
+example of a local process call is as follows.
+
+```ruby
+require 'riser'
+
+Riser::Daemon.start_daemon(daemonize: false,
+                           daemon_name: 'local_services',
+                           listen_address: 'localhost:8000'
+                          ) {|server|
+
+  services = Riser::DRbServices.new(0)
+  services.add_any_process_service(:pid_any, proc{ $$ })
+  services.add_single_process_service(:pid_single, proc{ $$ })
+  services.add_sticky_process_service(:pid_stickty, proc{|key| $$ })
+
+  server.process_num = 0
+  server.before_start{|server_socket|
+    services.start_server
+  }
+  server.at_fork{
+    services.detach_server
+  }
+  server.preprocess{
+    services.start_client
+  }
+  server.dispatch{|socket|
+    if (line = socket.gets) then
+      method, uri, _version = line.split
+      while (line = socket.gets)
+        line.strip.empty? and break
+      end
+      if (method == 'GET') then
+        socket << "HTTP/1.0 200 OK\r\n"
+        socket << "Content-Type: text/plain\r\n"
+        socket << "\r\n"
+
+        path, query = uri.split('?', 2)
+        case (path)
+        when '/any'
+          socket << 'pid: ' << services.call_service(:pid_any) << "\n"
+        when '/single'
+          socket << 'pid: ' << services.call_service(:pid_single) << "\n"
+        when '/sticky'
+          key = query || 'default'
+          socket << 'key: ' << key << ', pid: ' << services.call_service(:pid_stickty, key) << "\n"
+        else
+          socket << "unknown path: #{path}\n"
+        end
+      end
+    end
+  }
+  server.after_stop{
+    services.stop_server
+  }
+}
+```
+
+The difference from the previous example is as follows.
+
+|code                       |description                                                                                                  |
+|---------------------------|-------------------------------------------------------------------------------------------------------------|
+|`Riser::DRbServices.new(0)`|setting the number of processes to `0` makes local process call without starting the dRuby server processres.|
+|`server.process_num = 0`   |since local process call fails if it is a multi-process server, set it to single process multi-thread server.|
+
+In this example, there are no dRuby server processes and there is only
+1 server process.  Looking at the process of this example with
+`pstree` command is as follows.
+
+```
+$ pstree -ap
+...
+  |   `-bash,23355
+  |       `-ruby,3854 local_services.rb
+  |           `-ruby,3855 local_services.rb
+  |               |-{ruby},3856
+  |               |-{ruby},3857
+  |               |-{ruby},3858
+  |               |-{ruby},3859
+  |               `-{ruby},3860
+...
+```
+
+The result of the web service always returns the same process id.
+
+```
+$ curl http://localhost:8000/any
+pid: 3855
+$ curl http://localhost:8000/any
+pid: 3855
+$ curl http://localhost:8000/any
+pid: 3855
+```
+
+```
+$ curl http://localhost:8000/single
+pid: 3855
+$ curl http://localhost:8000/single
+pid: 3855
+$ curl http://localhost:8000/single
+pid: 3855
+```
+
+```
+$ curl http://localhost:8000/sticky
+key: default, pid: 3855
+$ curl http://localhost:8000/sticky
+key: default, pid: 3855
+$ curl http://localhost:8000/sticky?foo
+key: foo, pid: 3855
+$ curl http://localhost:8000/sticky?foo
+key: foo, pid: 3855
+$ curl http://localhost:8000/sticky?bar
+key: bar, pid: 3855
+$ curl http://localhost:8000/sticky?bar
+key: bar, pid: 3855
+```
+
 ### Resource and ResouceSet
 
 Development
