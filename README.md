@@ -288,6 +288,125 @@ example.  Also utilities are simple, so check the source codes of
 and
 '[stream.rb](https://github.com/y10k/riser/blob/master/lib/riser/stream.rb)'.
 
+### TLS Server
+
+With OpenSSL, the riser is able to provide a TLS server.  To provide a
+TLS server you need a certificate and private key.  An example of a
+simple TLS server is as follows.
+
+```ruby
+require 'openssl'
+require 'riser'
+
+cert_path = ARGV.shift or abort('need for server certificate file')
+pkey_path = ARGV.shift or abort('need for server private key file')
+
+ssl_context = OpenSSL::SSL::SSLContext.new
+ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(cert_path))
+ssl_context.key = OpenSSL::PKey::RSA.new(File.read(pkey_path))
+
+Riser::Daemon.start_daemon(daemonize: false,
+                           daemon_name: 'simple_tls',
+                           listen_address: 'localhost:5000'
+                          ) {|server|
+
+  server.dispatch{|socket|
+    ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
+    ssl_socket.accept
+    while (line = ssl_socket.gets)
+      ssl_socket.write(line)
+    end
+    ssl_socket.close
+  }
+}
+```
+
+An example of the result of connecting to the TLS server from OpenSSL
+client is as follows.
+
+```
+$ openssl s_client -CAfile local_ca.cert -connect localhost:5000
+CONNECTED(00000003)
+depth=1 C = JP, ST = Tokyo, L = Tokyo, O = Private, OU = Home, CN = *
+verify return:1
+depth=0 C = JP, ST = Tokyo, L = Tokyo, O = Private, OU = Home, CN = localhost
+verify return:1
+---
+Certificate chain
+ 0 s:/C=JP/ST=Tokyo/L=Tokyo/O=Private/OU=Home/CN=localhost
+   i:/C=JP/ST=Tokyo/L=Tokyo/O=Private/OU=Home/CN=*
+---
+Server certificate
+-----BEGIN CERTIFICATE-----
+MIIDODCCAiACCQCks7GdVjzAmDANBgkqhkiG9w0BAQsFADBaMQswCQYDVQQGEwJK
+UDEOMAwGA1UECAwFVG9reW8xDjAMBgNVBAcMBVRva3lvMRAwDgYDVQQKDAdQcml2
+YXRlMQ0wCwYDVQQLDARIb21lMQowCAYDVQQDDAEqMB4XDTE5MDExNTA4MzYzMloX
+DTI5MDExMjA4MzYzMlowYjELMAkGA1UEBhMCSlAxDjAMBgNVBAgMBVRva3lvMQ4w
+DAYDVQQHDAVUb2t5bzEQMA4GA1UECgwHUHJpdmF0ZTENMAsGA1UECwwESG9tZTES
+MBAGA1UEAwwJbG9jYWxob3N0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
+AQEAvsrEIm1Unna7KM4U45ibGG/A4pnEScMymaLoitbVr5wAzvn/Oj2UkRO0gzQl
+tLh28+jKh1eIlg60jyJ+QqpRCDWXXkEKXaAETbpYK1dlGE3ORI1VdTe/tYlpFxdd
+Bzq//pQVNnYw6I+eu+VNIGroI7rWybsvpwPXgqaiyFlmrP9i8VdZKvKketc+NNwt
+Chf81NJ9I1ue0cFZz+bMI84xhulVfxPi1avoXy0Ai+FM4Zqao5dkkKbmgia6R34e
+J9P7FIGYHypj988fRVs2Pqprh60Zx32oJsLRZzgeiIUqkim3fWDs0TydxAuG6Owl
+XgyCsdTGvwPM9ZQJQgczJsJCNwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCt0lUl
+X1b+r7xAnnBdmxYfIkEoMeEhe5VUB+/Onixb8C3sIdzM8PdXo43OKe/lb9kKY7Gz
+JQMFgrD4jc53mygU4K5gBXKZYOC3/NDNyqSr+22VHMqSD/pImjVFZ9E69gyqVXJ5
+mQBUWgUU4QhpgMnOi0HsN1bpjTiHEaCo7ODlNtF3fhj0bC5CzofxnNMUjTJAn8Rh
+A+fj/6dtDP+lMX//QkjtHOdVafKN8BJRrZg/DliGrqpUKW8h3NxCjGLeG5rFnVVj
+qPFc7IbH25KMLMDCJ3xrqBVtOOEjdTFKbfqOo58HZD7f/PYdQ0XHpG+/f6s+TgTl
+L+yNZF+/WlW7/020
+-----END CERTIFICATE-----
+subject=/C=JP/ST=Tokyo/L=Tokyo/O=Private/OU=Home/CN=localhost
+issuer=/C=JP/ST=Tokyo/L=Tokyo/O=Private/OU=Home/CN=*
+---
+No client certificate CA names sent
+Peer signing digest: SHA512
+Server Temp Key: X25519, 253 bits
+---
+SSL handshake has read 1453 bytes and written 269 bytes
+Verification: OK
+---
+New, TLSv1.2, Cipher is ECDHE-RSA-AES256-GCM-SHA384
+Server public key is 2048 bit
+Secure Renegotiation IS supported
+Compression: NONE
+Expansion: NONE
+No ALPN negotiated
+SSL-Session:
+    Protocol  : TLSv1.2
+    Cipher    : ECDHE-RSA-AES256-GCM-SHA384
+    Session-ID: 43427207A2C36F807AF5BDCB69EF26F18758A5BAC5C4867C04B17E1C1F6CAE9D
+    Session-ID-ctx:
+    Master-Key: 7BE6C8E0108A6A2F9B2B6AC4DB8360EE375A950D2EB4CB2B259125FB17BE74F00120F7E7290B7137E16F665F44D8AD20
+    PSK identity: None
+    PSK identity hint: None
+    SRP username: None
+    TLS session ticket lifetime hint: 7200 (seconds)
+    TLS session ticket:
+    0000 - af bd 28 5e ca d4 ae 61-38 63 ff 68 84 2b 51 13   ..(^...a8c.h.+Q.
+    0010 - d3 c5 7f c7 72 be f5 5c-bd 9e fb f3 88 61 83 01   ....r..\.....a..
+    0020 - a5 11 fe 45 14 c1 9c 9b-79 7b 34 87 c1 66 e1 cd   ...E....y{4..f..
+    0030 - 7d f4 ac 62 6e 25 53 c5-35 b2 b2 2c 3c b9 af 89   }..bn%S.5..,<...
+    0040 - cf 11 1d 9c 42 5a 75 86-d1 6d 49 fc e9 6a 39 f0   ....BZu..mI..j9.
+    0050 - fb cf 7d 9a 60 52 10 ad-a3 15 1b ba 00 32 67 e8   ..}.`R.......2g.
+    0060 - 03 ea 74 49 17 46 d8 a2-41 45 17 9d 2c ec 7f 3f   ..tI.F..AE..,..?
+    0070 - 89 eb 7e 4a 05 10 a3 81-d2 16 ce c7 da 7d c6 5a   ..~J.........}.Z
+    0080 - 9c 50 de a5 ce 8e ca 58-af 0b 94 d2 2a c2 56 da   .P.....X....*.V.
+    0090 - 00 05 b9 87 3c 9c 0e 53-70 c2 59 24 ef 0b 0a f3   ....<..Sp.Y$....
+
+    Start Time: 1549358604
+    Timeout   : 7200 (sec)
+    Verify return code: 0 (ok)
+    Extended master secret: yes
+---
+foo
+foo
+bar
+bar
+^C
+```
+
 ### dRuby Services
 
 Riser has a mechanism that runs the object in a separate process from
