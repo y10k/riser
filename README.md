@@ -156,7 +156,7 @@ for details of other attributes.
 
 ### Daemon
 
-Riser provids the function to daemonize servers.  By daemonizing the
+Riser provids the function to daemonize server.  By daemonizing the
 server, the server will be able to receive signal(2)s and restart.  An
 example of a simple daemon is as follows.
 
