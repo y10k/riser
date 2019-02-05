@@ -616,7 +616,170 @@ The list of  callbacks is as follows.
 |`preprocess(service_name) {|service_front| ... }` |performed before starting the server.                                                              |
 |`postprocess(service_name) {|service_front| ... }`|performed after the server stop.                                                                   |
 
-### Resource and ResouceSet
+### dRuby Services and Resource
+
+An example of running a pstore database in a single process without
+collision in a multi-process server is as follows.
+
+```ruby
+require 'pstore'
+require 'riser'
+
+Riser::Daemon.start_daemon(daemonize: false,
+                           daemon_name: 'simple_count',
+                           listen_address: 'localhost:8000'
+                          ) {|server|
+
+  services = Riser::DRbServices.new(1)
+  services.add_single_process_service(:pstore, PStore.new('simple_count.pstore', true))
+
+  server.process_num = 2
+  server.before_start{|server_socket|
+    services.start_server
+  }
+  server.at_fork{
+    services.detach_server
+  }
+  server.preprocess{
+    services.start_client
+  }
+  server.dispatch{|socket|
+    if (line = socket.gets) then
+      method, _uri, _version = line.split
+      while (line = socket.gets)
+        line.strip.empty? and break
+      end
+      if (method == 'GET') then
+        socket << "HTTP/1.0 200 OK\r\n"
+        socket << "Content-Type: text/plain\r\n"
+        socket << "\r\n"
+
+        services.get_service(:pstore).transaction do |pstore|
+          pstore[:count] ||= 0
+          pstore[:count] += 1
+          socket << 'count: ' << pstore[:count] << "\n"
+        end
+      end
+    end
+  }
+  server.after_stop{
+    services.stop_server
+  }
+}
+```
+
+The result of the web service in this example is as follows.
+
+```
+$ curl http://localhost:8000/
+count: 1
+$ curl http://localhost:8000/
+count: 2
+$ curl http://localhost:8000/
+count: 3
+$ ls -l *.pstore
+-rw-r--r-- 1 toki toki 13 Feb  5 15:21 simple_count.pstore
+```
+
+An example of using an undefined number of pstore is as follows.  By
+using `Riser::ResourceSet` and sticky process pattern, you can create
+a pstore object on access by each key.
+
+```ruby
+require 'pstore'
+require 'riser'
+
+Riser::Daemon.start_daemon(daemonize: false,
+                           daemon_name: 'simple_key_count',
+                           listen_address: 'localhost:8000'
+                          ) {|server|
+
+  services = Riser::DRbServices.new(4)
+  services.add_sticky_process_service(:pstore,
+                                      Riser::ResourceSet.build{|builder|
+                                        builder.at_create{|key|
+                                          PStore.new("simple_key_count-#{key}.pstore", true)
+                                        }
+                                        builder.at_destroy{
+                                          # nothing to do.
+                                        }
+                                      })
+
+  server.process_num = 2
+  server.before_start{|server_socket|
+    services.start_server
+  }
+  server.at_fork{
+    services.detach_server
+  }
+  server.preprocess{
+    services.start_client
+  }
+  server.dispatch{|socket|
+    if (line = socket.gets) then
+      method, uri, _version = line.split
+      while (line = socket.gets)
+        line.strip.empty? and break
+      end
+      if (method == 'GET') then
+        socket << "HTTP/1.0 200 OK\r\n"
+        socket << "Content-Type: text/plain\r\n"
+        socket << "\r\n"
+
+        _path, query = uri.split('?', 2)
+        key = query || 'default'
+        services.call_service(:pstore, key) {|pstore|
+          pstore.transaction do
+            pstore[:count] ||= 0
+            pstore[:count] += 1
+            socket << 'key: ' << key << "\n"
+            socket << 'count: ' << pstore[:count] << "\n"
+          end
+        }
+      end
+    end
+  }
+  server.after_stop{
+    services.stop_server
+  }
+}
+```
+
+The result of the web service in this example is as follows.
+
+```
+$ curl http://localhost:8000/
+key: default
+count: 1
+$ curl http://localhost:8000/
+key: default
+count: 2
+$ curl http://localhost:8000/
+key: default
+count: 3
+$ curl http://localhost:8000/?foo
+key: foo
+count: 1
+$ curl http://localhost:8000/?foo
+key: foo
+count: 2
+$ curl http://localhost:8000/?foo
+key: foo
+count: 3
+$ curl http://localhost:8000/?bar
+key: bar
+count: 1
+$ curl http://localhost:8000/?bar
+key: bar
+count: 2
+$ curl http://localhost:8000/?bar
+key: bar
+count: 3
+$ ls -l *.pstore
+-rw-r--r-- 1 toki toki 13 Feb  5 16:16 simple_key_count-bar.pstore
+-rw-r--r-- 1 toki toki 13 Feb  5 16:15 simple_key_count-default.pstore
+-rw-r--r-- 1 toki toki 13 Feb  5 16:15 simple_key_count-foo.pstore
+```
 
 Development
 -----------
