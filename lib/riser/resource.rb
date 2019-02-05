@@ -170,6 +170,12 @@ module Riser
       end
     end
 
+    def self.build
+      build = Builder.new
+      yield(build)
+      build.call
+    end
+
     extend Forwardable
     include DRb::DRbUndumped
 
@@ -341,6 +347,12 @@ module Riser
         @destroy or raise 'not defined destroy block'
         ResourceSet.new(Manager.new(@create, @destroy), @unref_alias_set)
       end
+    end
+
+    def self.build
+      build = Builder.new
+      yield(build)
+      build.call
     end
 
     extend Forwardable

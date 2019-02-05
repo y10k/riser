@@ -7,7 +7,6 @@ require 'test/unit'
 module Riser::Test
   class ResurceTest < Test::Unit::TestCase
     def setup
-      @build = Riser::Resource::Builder.new
       @recorder = CallRecorder.new('resource_test')
     end
 
@@ -16,14 +15,15 @@ module Riser::Test
     end
 
     def test_resource
-      @build.at_create{
-        @recorder.call('at_create')
-        Array.new
+      resource = Riser::Resource.build{|builder|
+        builder.at_create{
+          @recorder.call('at_create')
+          Array.new
+        }
+        builder.at_destroy{
+          @recorder.call('at_destroy')
+        }
       }
-      @build.at_destroy{
-        @recorder.call('at_destroy')
-      }
-      resource = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
@@ -55,14 +55,15 @@ module Riser::Test
     end
 
     def test_resource_unref_dup
-      @build.at_create{
-        @recorder.call('at_create')
-        Array.new
+      resource = Riser::Resource.build{|builder|
+        builder.at_create{
+          @recorder.call('at_create')
+          Array.new
+        }
+        builder.at_destroy{
+          @recorder.call('at_destroy')
+        }
       }
-      @build.at_destroy{
-        @recorder.call('at_destroy')
-      }
-      resource = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
@@ -100,15 +101,16 @@ module Riser::Test
     end
 
     def test_resource_alias_unref
-      @build.at_create{
-        @recorder.call('at_create')
-        Array.new
+      resource = Riser::Resource.build{|builder|
+        builder.at_create{
+          @recorder.call('at_create')
+          Array.new
+        }
+        builder.at_destroy{
+          @recorder.call('at_destroy')
+        }
+        builder.alias_unref(:close)
       }
-      @build.at_destroy{
-        @recorder.call('at_destroy')
-      }
-      @build.alias_unref(:close)
-      resource = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
@@ -141,14 +143,15 @@ module Riser::Test
     end
 
     def test_resource_overlap
-      @build.at_create{
-        @recorder.call('at_create')
-        Array.new
+      resource = Riser::Resource.build{|builder|
+        builder.at_create{
+          @recorder.call('at_create')
+          Array.new
+        }
+        builder.at_destroy{
+          @recorder.call('at_destroy')
+        }
       }
-      @build.at_destroy{
-        @recorder.call('at_destroy')
-      }
-      resource = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
@@ -199,14 +202,15 @@ module Riser::Test
     end
 
     def test_resource_create_fail
-      @build.at_create{
-        @recorder.call('at_create')
-        raise 'abort'
+      resource = Riser::Resource.build{|builder|
+        builder.at_create{
+          @recorder.call('at_create')
+          raise 'abort'
+        }
+        builder.at_destroy{
+          @recorder.call('at_destroy')
+        }
       }
-      @build.at_destroy{
-        @recorder.call('at_destroy')
-      }
-      resource = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
@@ -221,15 +225,16 @@ module Riser::Test
     end
 
     def test_resource_destroy_fail
-      @build.at_create{
-        @recorder.call('at_create')
-        Array.new
+      resource = Riser::Resource.build{|builder|
+        builder.at_create{
+          @recorder.call('at_create')
+          Array.new
+        }
+        builder.at_destroy{
+          @recorder.call('at_destroy')
+          raise 'abort'
+        }
       }
-      @build.at_destroy{
-        @recorder.call('at_destroy')
-        raise 'abort'
-      }
-      resource = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
@@ -254,7 +259,6 @@ module Riser::Test
 
   class ResourceSetTest < Test::Unit::TestCase
     def setup
-      @build = Riser::ResourceSet::Builder.new
       @recorder = CallRecorder.new('resource_set_test')
     end
 
@@ -263,14 +267,15 @@ module Riser::Test
     end
 
     def test_resource_set
-      @build.at_create{|key|
-        @recorder.call("at_create:#{key}")
-        Array[key]
+      resource_set = Riser::ResourceSet.build{|builder|
+        builder.at_create{|key|
+          @recorder.call("at_create:#{key}")
+          Array[key]
+        }
+        builder.at_destroy{|a|
+          @recorder.call("at_destroy:#{a[0]}")
+        }
       }
-      @build.at_destroy{|a|
-        @recorder.call("at_destroy:#{a[0]}")
-      }
-      resource_set = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
@@ -297,14 +302,15 @@ module Riser::Test
     end
 
     def test_resource_set_unref_dup
-      @build.at_create{|key|
-        @recorder.call("at_create:#{key}")
-        Array[key]
+      resource_set = Riser::ResourceSet.build{|builder|
+        builder.at_create{|key|
+          @recorder.call("at_create:#{key}")
+          Array[key]
+        }
+        builder.at_destroy{|a|
+          @recorder.call("at_destroy:#{a[0]}")
+        }
       }
-      @build.at_destroy{|a|
-        @recorder.call("at_destroy:#{a[0]}")
-      }
-      resource_set = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
@@ -338,15 +344,16 @@ module Riser::Test
     end
 
     def test_resource_set_alias_unref
-      @build.at_create{|key|
-        @recorder.call("at_create:#{key}")
-        Array[key]
+      resource_set = Riser::ResourceSet.build{|builder|
+        builder.at_create{|key|
+          @recorder.call("at_create:#{key}")
+          Array[key]
+        }
+        builder.at_destroy{|a|
+          @recorder.call("at_destroy:#{a[0]}")
+        }
+        builder.alias_unref(:close)
       }
-      @build.at_destroy{|a|
-        @recorder.call("at_destroy:#{a[0]}")
-      }
-      @build.alias_unref(:close)
-      resource_set = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
@@ -374,14 +381,15 @@ module Riser::Test
     end
 
     def test_resource_set_overlap
-      @build.at_create{|key|
-        @recorder.call("at_create:#{key}")
-        Array[key]
+      resource_set = Riser::ResourceSet.build{|builder|
+        builder.at_create{|key|
+          @recorder.call("at_create:#{key}")
+          Array[key]
+        }
+        builder.at_destroy{|a|
+          @recorder.call("at_destroy:#{a[0]}")
+        }
       }
-      @build.at_destroy{|a|
-        @recorder.call("at_destroy:#{a[0]}")
-      }
-      resource_set = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
@@ -472,14 +480,15 @@ module Riser::Test
     end
 
     def test_resource_create_fail
-      @build.at_create{|key|
-        @recorder.call("at_create:#{key}")
-        raise 'abort'
+      resource_set = Riser::ResourceSet.build{|builder|
+        builder.at_create{|key|
+          @recorder.call("at_create:#{key}")
+          raise 'abort'
+        }
+        builder.at_destroy{|a|
+          @recorder.call("at_destroy:#{a[0]}")
+        }
       }
-      @build.at_destroy{|a|
-        @recorder.call("at_destroy:#{a[0]}")
-      }
-      resource_set = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
@@ -496,15 +505,16 @@ module Riser::Test
     end
 
     def test_resource_destroy_fail
-      @build.at_create{|key|
-        @recorder.call("at_create:#{key}")
-        Array[key]
+      resource_set = Riser::ResourceSet.build{|builder|
+        builder.at_create{|key|
+          @recorder.call("at_create:#{key}")
+          Array[key]
+        }
+        builder.at_destroy{|a|
+          @recorder.call("at_destroy:#{a[0]}")
+          raise 'abort'
+        }
       }
-      @build.at_destroy{|a|
-        @recorder.call("at_destroy:#{a[0]}")
-        raise 'abort'
-      }
-      resource_set = @build.call
 
       assert_equal([], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
