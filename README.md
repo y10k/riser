@@ -247,16 +247,16 @@ for details of other parameters.
 The server object is able to register callbacks other than `dispatch`.
 The list of server objects' callbacks is as follows.
 
-|callback                           |description                                                                                                  |
-|-----------------------------------|-------------------------------------------------------------------------------------------------------------|
-|`before_start{|server_socket| ...}`|performed before starting the server. in a multi-process server, it is performed in the parent process.      |
-|`at_fork{ ... }`                   |performed after fork(2)ing on the multi-process server. it is performed in the child process.                |
-|`at_stop{|stop_state| ... }`       |performed when a stop signal(2) is received. in a multi-process server, it is performed in the child process.|
-|`at_stat{|stat_info| ... }`        |performed when 'get stat' signal(2) is received.                                                             |
-|`preprocess{ ... }`                |performed before starting 'dispatch loop'. in a multi-process server, it is performed in the child process.  |
-|`postprocess{ ... }`               |performed after 'dispatch loop' is finished. in a multi-process server, it is performed in the child process.|
-|`after_stop{ ... }`                |performed after the server stop. in a multi-process server, it is performed in the parent process.           |
-|`dispatch{|socket| ... }`          |known dispatch callback. in a multi-process server, it is performed in the child process.                    |
+|callback                                         |description                                                                                            |
+|-------------------------------------------------|-------------------------------------------------------------------------------------------------------|
+|<code>before_start{&#124;server_socket&#124; ...}</code>|performed before starting the server. in a multi-process server, it is performed in the parent process.|
+|`at_fork{ ... }`                                 |performed after fork(2)ing on the multi-process server. it is performed in the child process.          |
+|<code>at_stop{&#124;stop_state&#124; ... }</code>|performed when a stop signal(2) is received. in a multi-process server, it is performed in the child process.|
+|<code>at_stat{&#124;stat_info&#124; ... }</code> |performed when 'get stat' signal(2) is received.                                                       |
+|`preprocess{ ... }`                              |performed before starting 'dispatch loop'. in a multi-process server, it is performed in the child process.|
+|`postprocess{ ... }`                             |performed after 'dispatch loop' is finished. in a multi-process server, it is performed in the child process.|
+|`after_stop{ ... }`                              |performed after the server stop. in a multi-process server, it is performed in the parent process.     |
+|<code>dispatch{&#124;socket&#124; ... }</code>   |known dispatch callback. in a multi-process server, it is performed in the child process.              |
 
 It seems necessary to explain the `at_stat` callback.  Riser uses
 queues to distribute connections to threads and processes, and it is
@@ -729,11 +729,11 @@ key: bar, pid: 3855
 The object of `Riser::DRbServices` is able to register callbacks.
 The list of  callbacks is as follows.
 
-|callback                                          |description                                                                                        |
-|--------------------------------------------------|---------------------------------------------------------------------------------------------------|
-|`at_fork(service_name) {|service_front| ... }`    |performed when dRuby server process starts with remote process call. ignored by local process call.|
-|`preprocess(service_name) {|service_front| ... }` |performed before starting the server.                                                              |
-|`postprocess(service_name) {|service_front| ... }`|performed after the server stop.                                                                   |
+|callback                                          |description                                               |
+|--------------------------------------------------|----------------------------------------------------------|
+|<code>at_fork(service_name) {&#124;service_front&#124; ... }</code>|performed when dRuby server process starts with remote process call. ignored by local process call.|
+|<code>preprocess(service_name) {&#124;service_front&#124; ... }</code> |performed before starting the server.|
+|<code>postprocess(service_name) {&#124;service_front&#124; ... }</code>|performed after the server stop.     |
 
 ### dRuby Services and Resource
 
