@@ -545,11 +545,11 @@ Riser::Daemon.start_daemon(daemonize: false,
 }
 ```
 
-The difference from the previous example is as follows.
+The differences from the previous example is as follows.
 
 |code                       |description                                                                                                  |
 |---------------------------|-------------------------------------------------------------------------------------------------------------|
-|`Riser::DRbServices.new(0)`|setting the number of processes to `0` makes local process call without starting the dRuby server processres.|
+|`Riser::DRbServices.new(0)`|setting the number of processes to `0` makes local process call without starting the dRuby server processes. |
 |`server.process_num = 0`   |since local process call fails if it is a multi-process server, set it to single process multi-thread server.|
 
 In this example, there are no dRuby server processes and there is only
@@ -604,6 +604,17 @@ key: bar, pid: 3855
 $ curl http://localhost:8000/sticky?bar
 key: bar, pid: 3855
 ```
+
+### dRuby Services Callbacks
+
+The object of `Riser::DRbServices` is able to register callbacks.
+The list of  callbacks is as follows.
+
+|callback                                          |description                                                                                        |
+|--------------------------------------------------|---------------------------------------------------------------------------------------------------|
+|`at_fork(service_name) {|service_front| ... }`    |performed when dRuby server process starts with remote process call. ignored by local process call.|
+|`preprocess(service_name) {|service_front| ... }` |performed before starting the server.                                                              |
+|`postprocess(service_name) {|service_front| ... }`|performed after the server stop.                                                                   |
 
 ### Resource and ResouceSet
 
