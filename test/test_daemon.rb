@@ -823,6 +823,22 @@ module Riser::Test
       assert_nil(@sysop.listen(o, 10))
     end
 
+    def test_chmod
+      target = 'chmod_test.tmp'
+      FileUtils.touch(target)
+      begin
+        assert_equal([ target ], @sysop.chmod(0600, target))
+      ensure
+        FileUtils.rm_f(target)
+      end
+    end
+
+    def test_chmod_fail
+      target = 'chmod_test.tmp'
+      assert(! (File.exist? target))
+      assert_nil(@sysop.chmod(0600, target))
+    end
+
     def test_send_signal
       assert_equal(1, @sysop.send_signal($$, 0))
     end

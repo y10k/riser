@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'fileutils'
 require 'logger'
 require 'syslog/logger'
 require 'yaml'
@@ -35,8 +36,9 @@ module Riser
 
   class RootProcess
     class SystemOperation
-      def initialize(logger, module_Process: Process, class_IO: IO)
+      def initialize(logger, module_FileUtils: FileUtils, module_Process: Process, class_IO: IO)
         @logger = logger
+        @FileUtils = module_FileUtils
         @Process = module_Process
         @IO = class_IO
       end
@@ -72,6 +74,16 @@ module Riser
           server_socket.listen(backlog)
         rescue
           @logger.error("failed to listen server socket with backlog: #{backlog} [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
+      def chmod(mode, path)
+        begin
+          @FileUtils.chmod(mode, path)
+        rescue
+          @logger.error("failed to chmod(2): #{'%04o' % mode} #{path} [#{$!}]")
           @logger.debug($!) if @logger.debug?
           nil
         end
