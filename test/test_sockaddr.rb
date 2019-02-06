@@ -15,7 +15,7 @@ module Riser::Test
       assert_equal(:tcp, addr.type)
       assert_equal('example', addr.host)
       assert_equal(80, addr.port)
-      assert_equal([ :tcp, 'example', 80 ], addr.to_a)
+      assert_equal([ :tcp, 'example', 80 ], addr.to_address)
       assert_equal('tcp:example:80', addr.to_s)
     end
 
@@ -31,7 +31,7 @@ module Riser::Test
       assert_equal(:tcp, addr.type)
       assert_equal('::1', addr.host)
       assert_equal(80, addr.port)
-      assert_equal([ :tcp, '::1', 80 ], addr.to_a)
+      assert_equal([ :tcp, '::1', 80 ], addr.to_address)
       assert_equal('tcp:[::1]:80', addr.to_s)
     end
 
@@ -43,7 +43,7 @@ module Riser::Test
       assert_instance_of(Riser::UNIXSocketAddress, addr)
       assert_equal(:unix, addr.type)
       assert_equal('/tmp/unix_socket', addr.path)
-      assert_equal([ :unix, '/tmp/unix_socket' ], addr.to_a)
+      assert_equal([ :unix, '/tmp/unix_socket' ], addr.to_address)
       assert_equal('unix:/tmp/unix_socket', addr.to_s)
     end
 

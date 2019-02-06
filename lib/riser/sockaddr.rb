@@ -11,12 +11,12 @@ module Riser
 
     attr_reader :type
 
-    def to_a
+    def to_address
       [ @type ]
     end
 
     def to_s
-      to_a.map{|s|
+      to_address.map{|s|
         if (s.to_s.include? ':') then
           "[#{s}]"
         else
@@ -27,7 +27,7 @@ module Riser
 
     def ==(other)
       if (other.is_a? SocketAddress) then
-        self.to_a == other.to_a
+        self.to_address == other.to_address
       else
         false
       end
@@ -38,7 +38,7 @@ module Riser
     end
 
     def hash
-      to_a.hash ^ self.class.hash
+      to_address.hash ^ self.class.hash
     end
 
     def self.parse(config)
@@ -95,7 +95,7 @@ module Riser
     attr_reader :host
     attr_reader :port
 
-    def to_a
+    def to_address
       super << @host <<  @port
     end
 
@@ -112,7 +112,7 @@ module Riser
 
     attr_reader :path
 
-    def to_a
+    def to_address
       super << @path
     end
 
