@@ -87,10 +87,16 @@ module Riser
           when 'unix'
             path    = config[:path]    || config['path']
             backlog = config[:backlog] || config['backlog']
+            mode    = config[:mode]    || config['mode']
+            owner   = config[:owner]   || config['owner']
+            group   = config[:group]   || config['group']
             if ((path && (path.is_a? String) && ! path.empty?) &&
-                (backlog.nil? || (backlog.is_a? Integer)))
+                (backlog.nil? || (backlog.is_a? Integer)) &&
+                (mode.nil? || (mode.is_a? Integer)) &&
+                (owner.nil? || (owner.is_a? Integer) || ((owner.is_a? String) && ! owner.empty?)) &&
+                (group.nil? || (group.is_a? Integer) || ((group.is_a? String) && ! group.empty?)))
             then
-              return UNIXSocketAddress.new(path, backlog)
+              return UNIXSocketAddress.new(path, backlog, mode, owner, group)
             end
           end
         end
@@ -120,15 +126,29 @@ module Riser
   end
 
   class UNIXSocketAddress < SocketAddress
-    def initialize(path, backlog=nil)
+    def initialize(path, backlog=nil, mode=nil, owner=nil, group=nil)
       super(:unix, backlog)
       @path = path
+      @mode = mode
+      @owner = owner
+      @group = group
     end
 
     attr_reader :path
+    attr_reader :mode
+    attr_reader :owner
+    attr_reader :group
 
     def to_address
       super << @path
+    end
+
+    def to_option
+      option = super
+      option[:mode] = @mode if @mode
+      option[:owner] = @owner if @owner
+      option[:group] = @group if @group
+      option
     end
 
     def open_server
