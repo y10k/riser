@@ -13,7 +13,7 @@ module Riser
   autoload :ResourceSet, 'riser/resource'
   autoload :RootProcess, 'riser/daemon'
   autoload :ServerSignal, 'riser/server'
-  autoload :SocketAddress, 'riser/server'
+  autoload :SocketAddress, 'riser/sockaddr'
   autoload :SocketServer, 'riser/server'
   autoload :StatusFile, 'riser/daemon'
   autoload :Stream, 'riser/stream'

@@ -726,7 +726,8 @@ module Riser::Test
     end
 
     def test_get_server_address
-      assert_equal(Riser::TCPSocketAddress.new('example', 80), @sysop.get_server_address(proc{ 'example:80' }))
+      assert_equal(Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80),
+                   @sysop.get_server_address(proc{ 'example:80' }))
     end
 
     def test_get_server_address_fail_get_address
@@ -738,7 +739,7 @@ module Riser::Test
     end
 
     def test_get_server_socket
-      unix_addr = Riser::UNIXSocketAddress.new(Riser::TemporaryPath.make_unix_socket_path)
+      unix_addr = Riser::SocketAddress.parse(type: :unix, path: Riser::TemporaryPath.make_unix_socket_path)
       begin
         s = @sysop.get_server_socket(unix_addr)
         begin
@@ -752,7 +753,7 @@ module Riser::Test
     end
 
     def test_get_server_socket_fail_socket_open
-      unix_addr = Riser::UNIXSocketAddress.new(Riser::TemporaryPath.make_unix_socket_path)
+      unix_addr = Riser::SocketAddress.parse(type: :unix, path: Riser::TemporaryPath.make_unix_socket_path)
       begin
         s = unix_addr.open_server
         begin
