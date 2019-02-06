@@ -766,6 +766,23 @@ module Riser::Test
       end
     end
 
+    def test_listen
+      s = TCPServer.new(0)
+      begin
+        assert_equal(0, @sysop.listen(s, 10))
+      ensure
+        s.close
+      end
+    end
+
+    def test_listen_fail
+      o = Object.new
+      def o.listen(backlog)
+        raise 'abort'
+      end
+      assert_nil(@sysop.listen(o, 10))
+    end
+
     def test_send_signal
       assert_equal(1, @sysop.send_signal($$, 0))
     end

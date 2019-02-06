@@ -67,6 +67,16 @@ module Riser
         end
       end
 
+      def listen(server_socket, backlog)
+        begin
+          server_socket.listen(backlog)
+        rescue
+          @logger.error("failed to listen server socket with backlog: #{backlog} [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
       def send_signal(pid, signal)
         begin
           @Process.kill(signal, pid)
