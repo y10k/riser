@@ -47,7 +47,7 @@ module Riser
         begin
           address_config = sockaddr_get.call
         rescue
-          @logger.error("failed to get server address [#{$!}]")
+          @logger.error("failed to get server address [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           return
         end
@@ -63,7 +63,7 @@ module Riser
         begin
           server_address.open_server
         rescue
-          @logger.error("failed to open server socket: #{server_address} [#{$!}]")
+          @logger.error("failed to open server socket: #{server_address} [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -73,7 +73,7 @@ module Riser
         begin
           server_socket.listen(backlog)
         rescue
-          @logger.error("failed to listen server socket with backlog: #{backlog} [#{$!}]")
+          @logger.error("failed to listen(2) server socket with backlog: #{backlog} [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -83,7 +83,7 @@ module Riser
         begin
           @FileUtils.chmod(mode, path)
         rescue
-          @logger.error("failed to chmod(2): #{'%04o' % mode} #{path} [#{$!}]")
+          @logger.error("failed to chmod(2): #{'%04o' % mode} #{path} [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -93,7 +93,7 @@ module Riser
         begin
           @FileUtils.chown(owner, group, path)
         rescue
-          @logger.error("failed to chown(2): <#{owner}> <#{group}> <#{path}> [#{$!}]")
+          @logger.error("failed to chown(2): <#{owner}> <#{group}> <#{path}> [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -103,7 +103,7 @@ module Riser
         begin
           @Process.kill(signal, pid)
         rescue
-          @logger.error("failed to send signal (#{signal}) to process (pid: #{pid}) [#{$!}]")
+          @logger.error("failed to send signal (#{signal}) to process (pid: #{pid}) [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -113,7 +113,7 @@ module Riser
         begin
           @Process.wait(pid, flags)
         rescue
-          @logger.error("failed to wait(2) for process (pid: #{pid}) [#{$!}]")
+          @logger.error("failed to wait(2) for process (pid: #{pid}) [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -123,7 +123,7 @@ module Riser
         begin
           @IO.pipe
         rescue
-          @logger.error("failed to pipe(2) [#{$!}]")
+          @logger.error("failed to pipe(2) [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -133,7 +133,7 @@ module Riser
         begin
           @Process.fork{ yield }
         rescue
-          @logger.error("failed to fork(2) [#{$!}]")
+          @logger.error("failed to fork(2) [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -143,7 +143,7 @@ module Riser
         begin
           io.gets
         rescue
-          @logger.error("failed to get line from #{io.inspect} [#{$!}]")
+          @logger.error("failed to get line from #{io.inspect} [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -154,7 +154,7 @@ module Riser
           io.close
           io
         rescue
-          @logger.error("failed to close(2) #{io.inspect} [#{$!}]")
+          @logger.error("failed to close(2) #{io.inspect} [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end
@@ -290,7 +290,7 @@ module Riser
           Signal.trap(SIGNAL_STAT_GET_NO_RESET) { server.signal_stat_get(reset: false) }
           Signal.trap(SIGNAL_STAT_STOP) { server.signal_stat_stop }
         rescue
-          @logger.error("failed to setup server (pid: #{$$}) [#{$!}]")
+          @logger.error("failed to setup server (pid: #{$$}) [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           raise
         end
