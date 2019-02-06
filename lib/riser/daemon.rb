@@ -323,6 +323,16 @@ module Riser
       end
       @logger.info("open server socket: #{server_socket.local_address.inspect_sockaddr}")
 
+      if (server_address.backlog) then
+        if (@sysop.listen(server_socket, server_address.backlog)) then
+          @logger.info("server socket backlog: #{server_address.backlog}")
+        else
+          @logger.warn('server socket backlog is not changed.')
+        end
+      else
+        @logger.info('server socket backlog is default.')
+      end
+
       unless (server_pid = run_server(server_socket)) then
         @logger.fatal('failed to start daemon.')
         return 1
@@ -353,7 +363,7 @@ module Riser
           case (sig_ope)
           when :restart_graceful, :restart_forced
             if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
-              if (next_server_address != server_address) then
+              if (next_server_address.to_address != server_address.to_address) then
                 if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                   @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
                   @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
@@ -366,6 +376,16 @@ module Riser
               end
             else
               @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+            end
+
+            if (server_address.backlog) then
+              if (@sysop.listen(server_socket, server_address.backlog)) then
+                @logger.info("server socket backlog: #{server_address.backlog}")
+              else
+                @logger.warn('server socket backlog is not changed.')
+              end
+            else
+              @logger.info('server socket backlog is default.')
             end
 
             case (sig_ope)
