@@ -104,18 +104,18 @@ module Riser::Test
       assert_nil(Riser::SocketAddress.parse(config))
     end
 
-    tmp_tcp_addr = Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80)
-    tmp_unix_addr = Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket')
+    tmp_tcp_addr = Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80)
+    tmp_unix_addr = Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket')
     data('tcp_same'        => [ tmp_tcp_addr, tmp_tcp_addr ],
-         'tcp_equal'       => [ Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80),
-                                Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80) ],
-         'tcp_eq_backlog'  => [ Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80, backlog: 5),
-                                Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80, backlog: 5) ],
+         'tcp_equal'       => [ Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80),
+                                Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80) ],
+         'tcp_eq_backlog'  => [ Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80, backlog: 5),
+                                Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80, backlog: 5) ],
          'unix_same'       => [ tmp_unix_addr, tmp_unix_addr ],
-         'unix_equal'      => [ Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket'),
-                                Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket') ],
-         'unix_eq_backlog' => [ Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket', backlog: 5),
-                                Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket', backlog: 5) ])
+         'unix_equal'      => [ Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket'),
+                                Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket') ],
+         'unix_eq_backlog' => [ Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket', backlog: 5),
+                                Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket', backlog: 5) ])
     def test_equal(data)
       left_addr, right_addr = data
       assert(left_addr == right_addr)
@@ -123,20 +123,20 @@ module Riser::Test
       assert_equal(left_addr.hash, right_addr.hash)
     end
 
-    data('tcp_diff_host'     => [ Riser::SocketAddress.new(type: :tcp, host: 'example',   port: 80),
-                                  Riser::SocketAddress.new(type: :tcp, host: 'localhost', port: 80) ],
-         'tcp_diff_port'     => [ Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80),
-                                  Riser::SocketAddress.new(type: :tcp, host: 'example', port: 8080) ],
-         'tcp_diff_backlog'  => [ Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80, backlog: 5),
-                                  Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80, backlog: 8) ],
-         'unix_diff_path'    => [ Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket'),
-                                  Riser::SocketAddress.new(type: :unix, path: '/tmp/UNIX.SOCKET') ],
-         'unix_diff_backlog' => [ Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket', backlog: 5),
-                                  Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket', backlog: 8) ],
-         'tcp_not_eq_unix'   => [ Riser::SocketAddress.new(type: :tcp,  host: 'example', port: 80),
-                                  Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket') ],
-         'unix_not_eq_tcp'   => [ Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket'),
-                                  Riser::SocketAddress.new(type: :tcp,  host: 'example', port: 80) ])
+    data('tcp_diff_host'     => [ Riser::SocketAddress.parse(type: :tcp, host: 'example',   port: 80),
+                                  Riser::SocketAddress.parse(type: :tcp, host: 'localhost', port: 80) ],
+         'tcp_diff_port'     => [ Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80),
+                                  Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 8080) ],
+         'tcp_diff_backlog'  => [ Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80, backlog: 5),
+                                  Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80, backlog: 8) ],
+         'unix_diff_path'    => [ Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket'),
+                                  Riser::SocketAddress.parse(type: :unix, path: '/tmp/UNIX.SOCKET') ],
+         'unix_diff_backlog' => [ Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket', backlog: 5),
+                                  Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket', backlog: 8) ],
+         'tcp_not_eq_unix'   => [ Riser::SocketAddress.parse(type: :tcp,  host: 'example', port: 80),
+                                  Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket') ],
+         'unix_not_eq_tcp'   => [ Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket'),
+                                  Riser::SocketAddress.parse(type: :tcp,  host: 'example', port: 80) ])
     def test_not_equal(data)
       left_addr, right_addr = data
       assert(left_addr != right_addr)
@@ -144,8 +144,8 @@ module Riser::Test
       assert_not_equal(left_addr.hash, right_addr.hash)
     end
 
-    data('tcp_addr'  => Riser::SocketAddress.new(type: :tcp, host: 'example', port: 80),
-         'unix_addr' => Riser::SocketAddress.new(type: :unix, path: '/tmp/unix_socket'))
+    data('tcp_addr'  => Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80),
+         'unix_addr' => Riser::SocketAddress.parse(type: :unix, path: '/tmp/unix_socket'))
     def test_not_equal_object(data)
       addr = data
       assert(addr != Object.new)
