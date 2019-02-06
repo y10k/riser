@@ -89,6 +89,16 @@ module Riser
         end
       end
 
+      def chown(owner, group, path)
+        begin
+          @FileUtils.chown(owner, group, path)
+        rescue
+          @logger.error("failed to chown(2): <#{owner}> <#{group}> <#{path}> [#{$!}]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
       def send_signal(pid, signal)
         begin
           @Process.kill(signal, pid)

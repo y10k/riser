@@ -839,6 +839,38 @@ module Riser::Test
       assert_nil(@sysop.chmod(0600, target))
     end
 
+    def test_chown
+      target = 'chown_test.tmp'
+      FileUtils.touch(target)
+      begin
+        assert_equal([ target ], @sysop.chown(Process.uid, Process.gid, target))
+        assert_equal([ target ], @sysop.chown(Process.uid, -1,          target))
+        assert_equal([ target ], @sysop.chown(-1,          Process.gid, target))
+
+        pw = Etc.getpwuid(Process.uid)
+        gr = Etc.getgrgid(Process.gid)
+        assert_equal([ target ], @sysop.chown(pw.name, gr.name, target))
+        assert_equal([ target ], @sysop.chown(pw.name, nil,     target))
+        assert_equal([ target ], @sysop.chown(nil,     gr.name, target))
+      ensure
+        FileUtils.rm_f(target)
+      end
+    end
+
+    def test_chown_fail
+      target = 'chown_test.tmp'
+      assert(! (File.exist? target))
+      assert_nil(@sysop.chown(Process.uid, Process.gid, target))
+      assert_nil(@sysop.chown(Process.uid, -1,          target))
+      assert_nil(@sysop.chown(-1,          Process.gid, target))
+
+      pw = Etc.getpwuid(Process.uid)
+      gr = Etc.getgrgid(Process.gid)
+      assert_nil(@sysop.chown(pw.name, gr.name, target))
+      assert_nil(@sysop.chown(pw.name, nil,     target))
+      assert_nil(@sysop.chown(nil,     gr.name, target))
+    end
+
     def test_send_signal
       assert_equal(1, @sysop.send_signal($$, 0))
     end
