@@ -15,8 +15,8 @@ Riser::Daemon.start_daemon(daemonize: false,
                                         builder.at_create{|key|
                                           PStore.new("simple_key_count-#{key}.pstore", true)
                                         }
-                                        builder.at_destroy{
-                                          # nothing to do.
+                                        builder.at_destroy{|pstore|
+                                          # nothing to do about `pstore'.
                                         }
                                       })
 
