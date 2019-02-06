@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 module Riser
-  VERSION = '0.1.1'
+  VERSION = '0.1.2'
 end
 
 # Local Variables:
