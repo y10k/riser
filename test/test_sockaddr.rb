@@ -43,8 +43,8 @@ module Riser::Test
       assert_nil(addr.backlog)
     end
 
-    data('Hash:Symbol'     => { type: :tcp, host: 'example', port: 80, backlog: 5 },
-         'Hash:String'     => { 'type' => 'tcp', 'host' => 'example', 'port' => 80, 'backlog' => 5 })
+    data('Hash:Symbol' => { type: :tcp, host: 'example', port: 80, backlog: 5 },
+         'Hash:String' => { 'type' => 'tcp', 'host' => 'example', 'port' => 80, 'backlog' => 5 })
     def test_parse_tcp_socket_address_backlog(config)
       addr = Riser::SocketAddress.parse(config)
       assert_instance_of(Riser::TCPSocketAddress, addr)
