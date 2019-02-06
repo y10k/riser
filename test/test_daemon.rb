@@ -204,6 +204,10 @@ module Riser::Test
       start_daemon(@logger, proc{ { type: :tcp, host: 'localhost', port: 0, backlog: 10 } }, @dt) {}
     end
 
+    def test_daemon_start_change_unix_domain_socket_permission
+      start_daemon(@logger, proc{ { type: :unix, path: @unix_socket_path, mode: 0600, owner: Process.uid, group: Process.uid } }, @dt) {}
+    end
+
     def test_daemon_start_fail_not_run_server
       pid = start_daemon(@logger, proc{ @addr_conf }, @dt) {
         Process.exit!(1)
@@ -565,6 +569,57 @@ module Riser::Test
       assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
       assert_match(/\A \d+ \z/x, @recorder.get_file_records[1])
       assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
+    end
+
+    def test_daemon_server_restart_socket_permission
+      unix_socket_path_list = [
+        Riser::TemporaryPath.make_unix_socket_path,
+        Riser::TemporaryPath.make_unix_socket_path
+      ]
+      @unix_socket_path = unix_socket_path_list[0]
+
+      begin
+        addr_conf_list = [
+          { type: :unix, path: unix_socket_path_list[0] },
+          { type: :unix, path: unix_socket_path_list[1], mode: 0600, owner: Process.uid, group: Process.uid }
+        ]
+
+        pid = start_daemon(@logger, proc{ addr_conf_list.shift }, @dt) {|server|
+          server.before_start{|server_socket| @recorder.call(Process.pid.to_s) }
+          server.dispatch{|socket|
+            if (line = socket.gets) then
+              socket.write(line)
+            end
+            socket.close
+          }
+        }
+
+        connect_server{|s|
+          s.write("HALO\n")
+          assert_equal("HALO\n", s.gets)
+          assert_nil(s.gets)
+        }
+
+        assert_equal(1, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+
+        Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
+        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
+        @unix_socket_path = unix_socket_path_list[1]
+
+        connect_server{|s|
+          s.write("HALO\n")
+          assert_equal("HALO\n", s.gets)
+          assert_nil(s.gets)
+        }
+
+        assert_equal(2, @recorder.get_file_records.length)
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+        assert_match(/\A \d+ \z/x, @recorder.get_file_records[1])
+        assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
+      ensure
+        FileUtils.rm_f(unix_socket_path_list)
+      end
     end
 
     def test_daemon_server_restart_socket_reopen_fail_bad_server_address

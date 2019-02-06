@@ -355,6 +355,28 @@ module Riser
         @logger.info('server socket backlog is default.')
       end
 
+      if (server_address.type == :unix) then
+        if (server_address.mode) then
+          if (@sysop.chmod(server_address.mode, server_address.path)) then
+            @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
+          else
+            @logger.warn('unix domain server socket mode is not changed.')
+          end
+        else
+          @logger.info('unix domain server socket mode is default.')
+        end
+
+        if (server_address.owner || server_address.group) then
+          if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
+            @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
+          else
+            @logger.warn('unix domain server socket ownership is not changed.')
+          end
+        else
+          @logger.info('unix domain server socket ownership is default.')
+        end
+      end
+
       unless (server_pid = run_server(server_socket)) then
         @logger.fatal('failed to start daemon.')
         return 1
@@ -408,6 +430,24 @@ module Riser
               end
             else
               @logger.info('server socket backlog is default.')
+            end
+
+            if (server_address.type == :unix) then
+              if (server_address.mode) then
+                if (@sysop.chmod(server_address.mode, server_address.path)) then
+                  @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
+                else
+                  @logger.warn('unix domain server socket mode is not changed.')
+                end
+              end
+
+              if (server_address.owner || server_address.group) then
+                if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
+                  @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
+                else
+                  @logger.warn('unix domain server socket ownership is not changed.')
+                end
+              end
             end
 
             case (sig_ope)
