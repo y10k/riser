@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = %q{Riser}
   spec.description   = %q{Riser is a library of Ruby Infrastructure for cooperative multi-thread/multi-process SERver.}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/y10k/riser"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0").reject do |f|
