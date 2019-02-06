@@ -5,14 +5,22 @@ require 'uri'
 
 module Riser
   class SocketAddress
-    def initialize(type)
+    def initialize(type, backlog=nil)
       @type = type
+      @backlog = backlog
     end
 
     attr_reader :type
+    attr_reader :backlog
 
     def to_address
       [ @type ]
+    end
+
+    def to_option
+      option = {}
+      option[:backlog] = @backlog if @backlog
+      option
     end
 
     def to_s
@@ -27,7 +35,7 @@ module Riser
 
     def ==(other)
       if (other.is_a? SocketAddress) then
-        self.to_address == other.to_address
+        [ self.to_address, self.to_option ] == [ other.to_address, other.to_option ]
       else
         false
       end
@@ -38,7 +46,7 @@ module Riser
     end
 
     def hash
-      to_address.hash ^ self.class.hash
+      [ to_address, to_option ].hash ^ self.class.hash
     end
 
     def self.parse(config)
@@ -67,15 +75,22 @@ module Riser
         if (type = config[:type] || config['type']) then
           case (type.to_s)
           when 'tcp'
-            host = config[:host] || config['host']
-            port = config[:port] || config['port']
-            if (host && (host.is_a? String) && port && (port.is_a? Integer)) then
-              return TCPSocketAddress.new(unsquare.call(host), port)
+            host    = config[:host]    || config['host']
+            port    = config[:port]    || config['port']
+            backlog = config[:backlog] || config['backlog']
+            if ((host && (host.is_a? String) && ! host.empty?) &&
+                (port && (port.is_a? Integer)) &&
+                (backlog.nil? || (backlog.is_a? Integer)))
+            then
+              return TCPSocketAddress.new(unsquare.call(host), port, backlog)
             end
           when 'unix'
-            path = config[:path] || config['path']
-            if (path && (path.is_a? String) && ! path.empty?) then
-              return UNIXSocketAddress.new(path)
+            path    = config[:path]    || config['path']
+            backlog = config[:backlog] || config['backlog']
+            if ((path && (path.is_a? String) && ! path.empty?) &&
+                (backlog.nil? || (backlog.is_a? Integer)))
+            then
+              return UNIXSocketAddress.new(path, backlog)
             end
           end
         end
@@ -86,8 +101,8 @@ module Riser
   end
 
   class TCPSocketAddress < SocketAddress
-    def initialize(host, port)
-      super(:tcp)
+    def initialize(host, port, backlog=nil)
+      super(:tcp, backlog)
       @host = host
       @port = port
     end
@@ -105,8 +120,8 @@ module Riser
   end
 
   class UNIXSocketAddress < SocketAddress
-    def initialize(path)
-      super(:unix)
+    def initialize(path, backlog=nil)
+      super(:unix, backlog)
       @path = path
     end
 
