@@ -419,7 +419,11 @@ module Riser
             case (sig_ope)
             when :restart_graceful, :restart_forced
               if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
-                if (next_server_address.to_address != server_address.to_address) then
+                if (next_server_address.to_address == server_address.to_address) then
+                  if (next_server_address.to_option != server_address.to_option) then
+                    server_address = next_server_address
+                  end
+                else
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
                     @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
@@ -455,6 +459,8 @@ module Riser
                   else
                     @logger.warn('unix domain server socket mode is not changed.')
                   end
+                else
+                  @logger.info('unix domain server socket mode is default.')
                 end
 
                 if (server_address.owner || server_address.group) then
@@ -463,6 +469,8 @@ module Riser
                   else
                     @logger.warn('unix domain server socket ownership is not changed.')
                   end
+                else
+                  @logger.info('unix domain server socket ownership is default.')
                 end
               end
 

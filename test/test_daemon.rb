@@ -205,7 +205,25 @@ module Riser::Test
     end
 
     def test_daemon_start_change_unix_domain_socket_permission
-      start_daemon(@logger, proc{ { type: :unix, path: @unix_socket_path, mode: 0600, owner: Process.uid, group: Process.uid } }, @dt) {}
+      start_daemon(@logger, proc{ { type: :unix, path: @unix_socket_path, mode: 0600, owner: Process.uid, group: Process.uid } }, @dt)  {|server|
+        server.dispatch{|socket|
+          if (line = socket.gets) then
+            socket.write(line)
+          end
+          socket.close
+        }
+      }
+
+      connect_server{|s|
+        s.write("HALO\n")
+        assert_equal("HALO\n", s.gets)
+        assert_nil(s.gets)
+      }
+
+      unix_socket_stat = File.stat(@unix_socket_path)
+      assert_equal(0600, unix_socket_stat.mode & 07777)
+      assert_equal(Process.uid, unix_socket_stat.uid)
+      assert_equal(Process.gid, unix_socket_stat.gid)
     end
 
     def test_daemon_start_fail_not_run_server
@@ -572,54 +590,48 @@ module Riser::Test
     end
 
     def test_daemon_server_restart_socket_permission
-      unix_socket_path_list = [
-        Riser::TemporaryPath.make_unix_socket_path,
-        Riser::TemporaryPath.make_unix_socket_path
+      addr_conf_list = [
+        { type: :unix, path: @unix_socket_path },
+        { type: :unix, path: @unix_socket_path, mode: 0600, owner: Process.uid, group: Process.uid }
       ]
-      @unix_socket_path = unix_socket_path_list[0]
 
-      begin
-        addr_conf_list = [
-          { type: :unix, path: unix_socket_path_list[0] },
-          { type: :unix, path: unix_socket_path_list[1], mode: 0600, owner: Process.uid, group: Process.uid }
-        ]
-
-        pid = start_daemon(@logger, proc{ addr_conf_list.shift }, @dt) {|server|
-          server.before_start{|server_socket| @recorder.call(Process.pid.to_s) }
-          server.dispatch{|socket|
-            if (line = socket.gets) then
-              socket.write(line)
-            end
-            socket.close
-          }
+      pid = start_daemon(@logger, proc{ addr_conf_list.shift }, @dt) {|server|
+        server.before_start{|server_socket| @recorder.call(Process.pid.to_s) }
+        server.dispatch{|socket|
+          if (line = socket.gets) then
+            socket.write(line)
+          end
+          socket.close
         }
+      }
 
-        connect_server{|s|
-          s.write("HALO\n")
-          assert_equal("HALO\n", s.gets)
-          assert_nil(s.gets)
-        }
+      connect_server{|s|
+        s.write("HALO\n")
+        assert_equal("HALO\n", s.gets)
+        assert_nil(s.gets)
+      }
 
-        assert_equal(1, @recorder.get_file_records.length)
-        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+      assert_equal(1, @recorder.get_file_records.length)
+      assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
-        Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
-        sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
-        @unix_socket_path = unix_socket_path_list[1]
+      Process.kill(SIGNAL_RESTART_GRACEFUL, pid)
+      sleep(@dt * 50)         # need for 10s of milliseconds to stop the process
 
-        connect_server{|s|
-          s.write("HALO\n")
-          assert_equal("HALO\n", s.gets)
-          assert_nil(s.gets)
-        }
+      connect_server{|s|
+        s.write("HALO\n")
+        assert_equal("HALO\n", s.gets)
+        assert_nil(s.gets)
+      }
 
-        assert_equal(2, @recorder.get_file_records.length)
-        assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
-        assert_match(/\A \d+ \z/x, @recorder.get_file_records[1])
-        assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
-      ensure
-        FileUtils.rm_f(unix_socket_path_list)
-      end
+      assert_equal(2, @recorder.get_file_records.length)
+      assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
+      assert_match(/\A \d+ \z/x, @recorder.get_file_records[1])
+      assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
+
+      unix_socket_stat =File.stat(@unix_socket_path)
+      assert_equal(0600, unix_socket_stat.mode & 07777)
+      assert_equal(Process.uid, unix_socket_stat.uid)
+      assert_equal(Process.gid, unix_socket_stat.gid)
     end
 
     def test_daemon_server_restart_socket_reopen_fail_bad_server_address
