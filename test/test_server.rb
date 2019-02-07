@@ -485,6 +485,34 @@ module Riser::Test
                      stat
                    ], @recorder.get_file_records)
     end
+
+    # skip this test because of  not be able to erase the error indication.
+    def _test_server_stop_on_fail
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        if (line = socket.gets) then
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+        raise 'abort'
+      }
+      start_server
+
+      connect_server{|s|
+        s.write("HALO\n")
+        assert_equal("HALO\n", s.gets)
+        assert_nil(s.gets)
+      }
+
+      sleep(server_polling_timeout_seconds * 50)
+
+      assert_equal(%w[ dispatch request-response ], @recorder.get_file_records)
+    end
   end
 
   class MultiProcessSocketServerTest < Test::Unit::TestCase
@@ -871,6 +899,36 @@ module Riser::Test
                      stat
                      stat
                    ], @recorder.get_file_records)
+    end
+
+    # skip this test because of  not be able to erase the error indication.
+    def _test_server_stop_on_fail
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        if (line = socket.gets) then
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+        raise 'abort'
+      }
+      start_server
+
+      connect_server{|s|
+        s.write("HALO\n")
+        assert_equal("HALO\n", s.gets)
+        assert_nil(s.gets)
+      }
+
+      sleep(server_polling_timeout_seconds * 50)
+
+      assert_equal(%w[ dispatch request-response ], @recorder.get_file_records)
     end
   end
 end

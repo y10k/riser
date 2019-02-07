@@ -299,6 +299,9 @@ module Riser
     # _server_socket is a dummy argument to call like
     # SocketProcessDispatcher#start.
     def start(_server_socket=nil)
+      error_lock = Mutex.new
+      last_error = nil
+
       @preprocess.call
       begin
         queue = TimeoutSizedQueue.new(@thread_queue_size, name: @thread_queue_name)
@@ -306,13 +309,19 @@ module Riser
           thread_list = []
           @thread_num.times{|i|
             thread_list << Thread.new{
-              Thread.current[:number] = i
-              while (socket = queue.pop)
-                begin
-                  @dispatch.call(socket)
-                ensure
-                  socket.close unless socket.closed?
+              begin
+                Thread.current[:number] = i
+                while (socket = queue.pop)
+                  begin
+                    @dispatch.call(socket)
+                  ensure
+                    socket.close unless socket.closed?
+                  end
                 end
+              rescue
+                error_lock.synchronize{
+                  last_error = $!
+                }
               end
             }
           }
@@ -320,12 +329,14 @@ module Riser
           catch (:end_of_server) {
             while (true)
               begin
+                error_lock.synchronize{ last_error } and @stop_state = :forced
                 @stop_state and throw(:end_of_server)
                 apply_signal_stat(queue)
                 socket = @accept.call
               end until (socket)
 
               until (queue.push(socket, @thread_queue_polling_timeout_seconds))
+                error_lock.synchronize{ last_error } and @stop_state = :forced
                 if (@stop_state == :forced) then
                   socket.close
                   @accept_return.call
@@ -356,6 +367,12 @@ module Riser
       ensure
         @postprocess.call
       end
+
+      error_lock.synchronize{
+        if (last_error) then
+          raise last_error
+        end
+      }
 
       nil
     end
