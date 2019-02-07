@@ -577,7 +577,11 @@ module Riser
 
       @process_dispatcher.accept{
         if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
-          server_socket.accept
+          begin
+            server_socket.accept_nonblock
+          rescue IO::WaitReadable
+            nil                 # to avoid conflicting accept(2) at server restart overlap
+          end
         end
       }
       @process_dispatcher.accept_return(&NO_CALL)
@@ -733,7 +737,11 @@ module Riser
         @dispatcher.postprocess(&@postprocess)
         @dispatcher.accept{
           if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
-            server_socket.accept
+            begin
+              server_socket.accept_nonblock
+            rescue IO::WaitReadable
+              nil               # to avoid conflicting accept(2) at server restart overlap
+            end
           end
         }
         @dispatcher.accept_return(&NO_CALL)
