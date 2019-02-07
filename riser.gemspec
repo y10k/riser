@@ -10,8 +10,11 @@ Gem::Specification.new do |spec|
   spec.authors       = ["TOKI Yoshinori"]
   spec.email         = ["toki@freedom.ne.jp"]
 
-  spec.summary       = %q{Riser}
-  spec.description   = %q{Riser is a library of Ruby Infrastructure for cooperative multi-thread/multi-process SERver.}
+  spec.summary       = %q{Riser is a library of Ruby Infrastructure for cooperative multi-thread/multi-process SERver}
+  spec.description   = <<-'EOF'
+    Riser is a library of Ruby Infrastructure for cooperative multi-thread/multi-process SERver.
+    This library is useful to make multi-thread/multi-process socket server and daemon. 
+  EOF
   spec.homepage      = "https://github.com/y10k/riser"
   spec.license       = "MIT"
 
