@@ -23,16 +23,6 @@ module Riser
       option
     end
 
-    def to_s
-      to_address.map{|s|
-        if (s.to_s.include? ':') then
-          "[#{s}]"
-        else
-          s
-        end
-      }.join(':')
-    end
-
     def ==(other)
       if (other.is_a? SocketAddress) then
         [ self.to_address, self.to_option ] == [ other.to_address, other.to_option ]
@@ -120,6 +110,14 @@ module Riser
       super << @host <<  @port
     end
 
+    def to_s
+      if (@host.include? ':') then
+        "tcp://[#{host}]:#{port}"
+      else
+        "tcp://#{host}:#{port}"
+      end
+    end
+
     def open_server
       TCPServer.new(@host, @port)
     end
@@ -149,6 +147,10 @@ module Riser
       option[:owner] = @owner if @owner
       option[:group] = @group if @group
       option
+    end
+
+    def to_s
+      "unix:#{@path}"
     end
 
     def open_server

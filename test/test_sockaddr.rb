@@ -18,7 +18,7 @@ module Riser::Test
       assert_equal('example', addr.host)
       assert_equal(80, addr.port)
       assert_equal([ :tcp, 'example', 80 ], addr.to_address)
-      assert_equal('tcp:example:80', addr.to_s)
+      assert_equal('tcp://example:80', addr.to_s)
       assert_equal({}, addr.to_option)
       assert_nil(addr.backlog)
     end
@@ -38,13 +38,13 @@ module Riser::Test
       assert_equal('::1', addr.host)
       assert_equal(80, addr.port)
       assert_equal([ :tcp, '::1', 80 ], addr.to_address)
-      assert_equal('tcp:[::1]:80', addr.to_s)
+      assert_equal('tcp://[::1]:80', addr.to_s)
       assert_equal({}, addr.to_option)
       assert_nil(addr.backlog)
     end
 
-    data('Hash:Symbol' => { type: :tcp, host: 'example', port: 80, backlog: 5 },
-         'Hash:String' => { 'type' => 'tcp', 'host' => 'example', 'port' => 80, 'backlog' => 5 })
+    data('Hash:Symbol'     => { type: :tcp, host: 'example', port: 80, backlog: 5 },
+         'Hash:String'     => { 'type' => 'tcp', 'host' => 'example', 'port' => 80, 'backlog' => 5 })
     def test_parse_tcp_socket_address_backlog(config)
       addr = Riser::SocketAddress.parse(config)
       assert_instance_of(Riser::TCPSocketAddress, addr)
@@ -52,7 +52,7 @@ module Riser::Test
       assert_equal('example', addr.host)
       assert_equal(80, addr.port)
       assert_equal([ :tcp, 'example', 80 ], addr.to_address)
-      assert_equal('tcp:example:80', addr.to_s)
+      assert_equal('tcp://example:80', addr.to_s)
       assert_equal({ backlog: 5 }, addr.to_option)
       assert_equal(5, addr.backlog)
     end
