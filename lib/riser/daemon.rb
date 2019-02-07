@@ -426,11 +426,18 @@ module Riser
                 else
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
-                    @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
-                    @sysop.close(server_socket) or @logger.warn("failed to close server socket: #{server_address}")
+                    server_socket_local_address = server_socket.local_address # get local_address before close(2)
+                    if (@sysop.close(server_socket)) then
+                      @logger.info("close server socket: #{server_socket_local_address.inspect_sockaddr}") 
+                    else
+                      @logger.warn("failed to close server socket: #{server_socket_local_address.inspect_sockaddr}")
+                    end
                     if (server_address.type == :unix) then
-                      @logger.info("delete unix server socket: (#{server_address})")
-                      @sysop.unlink(server_address.path) or @logger.warn("failed to delete unix server socket: #{server_address}")
+                      if (@sysop.unlink(server_address.path)) then
+                        @logger.info("delete unix server socket: #{server_address}")
+                      else
+                        @logger.warn("failed to delete unix server socket: #{server_address}")
+                      end
                     end
                     server_socket = next_server_socket
                     server_address = next_server_address
@@ -508,14 +515,23 @@ module Riser
                 @logger.warn("server continue (pid: #{server_pid})")
               end
             when :stat_get_and_reset
-              @logger.info("stat get(reset: true) (pid: #{server_pid})")
-              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
+              if (@sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET)) then
+                @logger.info("stat get(reset: true) (pid: #{server_pid})")
+              else
+                @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
+              end
             when :stat_get_no_reset
-              @logger.info("stat get(reset: false) (pid: #{server_pid})")
-              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
+              if (@sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET)) then
+                @logger.info("stat get(reset: false) (pid: #{server_pid})")
+              else
+                @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
+              end
             when :stat_stop
-              @logger.info("stat stop (pid: #{server_pid})")
-              @sysop.send_signal(server_pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{server_pid})")
+              if (@sysop.send_signal(server_pid, SIGNAL_STAT_STOP)) then
+                @logger.info("stat stop (pid: #{server_pid})")
+              else
+                @logger.error("failed to stat stop (pid: #{server_pid})")
+              end
             else
               @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
             end
@@ -537,8 +553,9 @@ module Riser
         if (server_pid) then
           case (@stop_state)
           when :graceful
-            @logger.info("server graceful stop (pid: #{server_pid})")
-            unless (server_stop_graceful(server_pid)) then
+            if (server_stop_graceful(server_pid)) then
+              @logger.info("server graceful stop (pid: #{server_pid})")
+            else
               @logger.fatal('failed to stop daemon.')
               return 1
             end
@@ -547,8 +564,9 @@ module Riser
               return 1
             end
           when :forced
-            @logger.info("server forced stop (pid: #{server_pid})")
-            unless (server_stop_forced(server_pid)) then
+            if (server_stop_forced(server_pid)) then
+              @logger.info("server forced stop (pid: #{server_pid})")
+            else
               @logger.fatal('failed to stop daemon.')
               return 1
             end
@@ -564,11 +582,18 @@ module Riser
           @logger.warn('no server to stop.')
         end
       ensure
-        @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
-        @sysop.close(server_socket) or @logger.warn("failed to close server socket: #{server_address}")
+        server_socket_local_address = server_socket.local_address # get local_address before close(2)
+        if (@sysop.close(server_socket)) then
+          @logger.info("close server socket: #{server_socket_local_address.inspect_sockaddr}") 
+        else
+          @logger.warn("failed to close server socket: #{server_socket_local_address.inspect_sockaddr}")
+        end
         if (server_address.type == :unix) then
-          @logger.info("delete unix server socket: (#{server_address})")
-          @sysop.unlink(server_address.path) or @logger.warn("failed to delete unix server socket: #{server_address}")
+          if (@sysop.unlink(server_address.path)) then
+            @logger.info("delete unix server socket: #{server_address}")
+          else
+            @logger.warn("failed to delete unix server socket: #{server_address}")
+          end
         end
       end
 
