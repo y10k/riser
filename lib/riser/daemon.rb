@@ -356,199 +356,212 @@ module Riser
       end
       @logger.info("open server socket: #{server_socket.local_address.inspect_sockaddr}")
 
-      if (server_address.backlog) then
-        if (@sysop.listen(server_socket, server_address.backlog)) then
-          @logger.info("server socket backlog: #{server_address.backlog}")
-        else
-          @logger.warn('server socket backlog is not changed.')
-        end
-      else
-        @logger.info('server socket backlog is default.')
-      end
-
-      if (server_address.type == :unix) then
-        if (server_address.mode) then
-          if (@sysop.chmod(server_address.mode, server_address.path)) then
-            @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
+      begin
+        if (server_address.backlog) then
+          if (@sysop.listen(server_socket, server_address.backlog)) then
+            @logger.info("server socket backlog: #{server_address.backlog}")
           else
-            @logger.warn('unix domain server socket mode is not changed.')
+            @logger.warn('server socket backlog is not changed.')
           end
         else
-          @logger.info('unix domain server socket mode is default.')
+          @logger.info('server socket backlog is default.')
         end
 
-        if (server_address.owner || server_address.group) then
-          if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
-            @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
+        if (server_address.type == :unix) then
+          if (server_address.mode) then
+            if (@sysop.chmod(server_address.mode, server_address.path)) then
+              @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
+            else
+              @logger.warn('unix domain server socket mode is not changed.')
+            end
           else
-            @logger.warn('unix domain server socket ownership is not changed.')
+            @logger.info('unix domain server socket mode is default.')
           end
-        else
-          @logger.info('unix domain server socket ownership is default.')
-        end
-      end
 
-      unless (server_pid = run_server(server_socket)) then
-        @logger.fatal('failed to start daemon.')
-        return 1
-      end
-      @logger.info("server process start (pid: #{server_pid})")
-
-      @logger.info("start server polling (interval seconds: #{@server_polling_interval_seconds})")
-      until (@stop_state)
-        server_polling_sleep
-        if (server_pid) then
-          @logger.debug("server polling... (pid: #{server_pid})") if @logger.debug?
-        else
-          @logger.debug('server polling...') if @logger.debug?
+          if (server_address.owner || server_address.group) then
+            if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
+              @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
+            else
+              @logger.warn('unix domain server socket ownership is not changed.')
+            end
+          else
+            @logger.info('unix domain server socket ownership is default.')
+          end
         end
 
-        if (! server_pid || @sysop.wait(server_pid, Process::WNOHANG)) then
+        unless (server_pid = run_server(server_socket)) then
+          @logger.fatal('failed to start daemon.')
+          return 1
+        end
+        @logger.info("server process start (pid: #{server_pid})")
+
+        @logger.info("start server polling (interval seconds: #{@server_polling_interval_seconds})")
+        until (@stop_state)
+          server_polling_sleep
           if (server_pid) then
-            @logger.warn("found server down (pid: #{server_pid}) and restart server.")
+            @logger.debug("server polling... (pid: #{server_pid})") if @logger.debug?
           else
-            @logger.warn('found server down and restart server.')
+            @logger.debug('server polling...') if @logger.debug?
           end
-          if (server_pid = run_server(server_socket)) then
-            @logger.info("server process start (pid: #{server_pid})")
+
+          if (! server_pid || @sysop.wait(server_pid, Process::WNOHANG)) then
+            if (server_pid) then
+              @logger.warn("found server down (pid: #{server_pid}) and restart server.")
+            else
+              @logger.warn('found server down and restart server.')
+            end
+            if (server_pid = run_server(server_socket)) then
+              @logger.info("server process start (pid: #{server_pid})")
+            end
           end
-        end
 
-        while (! @stop_state && server_pid && sig_ope = @signal_operation_queue.shift)
-          case (sig_ope)
-          when :restart_graceful, :restart_forced
-            if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
-              if (next_server_address.to_address != server_address.to_address) then
-                if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
-                  @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
-                  @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
-                  @sysop.close(server_socket) or @logger.warn("failed to close server socket (#{server_address})")
-                  server_socket = next_server_socket
-                  server_address = next_server_address
-                else
-                  @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
-                end
-              end
-            else
-              @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
-            end
-
-            if (server_address.backlog) then
-              if (@sysop.listen(server_socket, server_address.backlog)) then
-                @logger.info("server socket backlog: #{server_address.backlog}")
-              else
-                @logger.warn('server socket backlog is not changed.')
-              end
-            else
-              @logger.info('server socket backlog is default.')
-            end
-
-            if (server_address.type == :unix) then
-              if (server_address.mode) then
-                if (@sysop.chmod(server_address.mode, server_address.path)) then
-                  @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
-                else
-                  @logger.warn('unix domain server socket mode is not changed.')
-                end
-              end
-
-              if (server_address.owner || server_address.group) then
-                if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
-                  @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
-                else
-                  @logger.warn('unix domain server socket ownership is not changed.')
-                end
-              end
-            end
-
+          while (! @stop_state && server_pid && sig_ope = @signal_operation_queue.shift)
             case (sig_ope)
-            when :restart_graceful
-              @logger.info("server graceful restart (pid: #{server_pid})")
-            when :restart_forced
-              @logger.info("server forced restart (pid: #{server_pid})")
-            else
-              @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
-            end
+            when :restart_graceful, :restart_forced
+              if (next_server_address = @sysop.get_server_address(@sockaddr_get)) then
+                if (next_server_address.to_address != server_address.to_address) then
+                  if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
+                    @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
+                    @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
+                    @sysop.close(server_socket) or @logger.warn("failed to close server socket: #{server_address}")
+                    if (server_address.type == :unix) then
+                      @logger.info("delete unix server socket: (#{server_address})")
+                      @sysop.unlink(server_address.path) or @logger.warn("failed to delete unix server socket: #{server_address}")
+                    end
+                    server_socket = next_server_socket
+                    server_address = next_server_address
+                  else
+                    @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+                  end
+                end
+              else
+                @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+              end
 
-            if (next_pid = run_server(server_socket)) then
-              @logger.info("server process start (pid: #{next_pid})")
+              if (server_address.backlog) then
+                if (@sysop.listen(server_socket, server_address.backlog)) then
+                  @logger.info("server socket backlog: #{server_address.backlog}")
+                else
+                  @logger.warn('server socket backlog is not changed.')
+                end
+              else
+                @logger.info('server socket backlog is default.')
+              end
 
-              if (@server_restart_overlap_seconds > 0) then
-                @logger.info("server restart overlap (interval seconds: #{@server_restart_overlap_seconds})")
-                sleep(@server_restart_overlap_seconds)
+              if (server_address.type == :unix) then
+                if (server_address.mode) then
+                  if (@sysop.chmod(server_address.mode, server_address.path)) then
+                    @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
+                  else
+                    @logger.warn('unix domain server socket mode is not changed.')
+                  end
+                end
+
+                if (server_address.owner || server_address.group) then
+                  if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
+                    @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
+                  else
+                    @logger.warn('unix domain server socket ownership is not changed.')
+                  end
+                end
               end
 
               case (sig_ope)
               when :restart_graceful
-                @logger.info("server graceful stop (pid: #{server_pid})")
-                server_stop_graceful(server_pid)
+                @logger.info("server graceful restart (pid: #{server_pid})")
               when :restart_forced
-                @logger.info("server forced stop (pid: #{server_pid})")
-                server_stop_forced(server_pid)
+                @logger.info("server forced restart (pid: #{server_pid})")
               else
                 @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
               end
 
-              @process_wait_count_table[server_pid] = 0
-              server_pid = next_pid
+              if (next_pid = run_server(server_socket)) then
+                @logger.info("server process start (pid: #{next_pid})")
+
+                if (@server_restart_overlap_seconds > 0) then
+                  @logger.info("server restart overlap (interval seconds: #{@server_restart_overlap_seconds})")
+                  sleep(@server_restart_overlap_seconds)
+                end
+
+                case (sig_ope)
+                when :restart_graceful
+                  @logger.info("server graceful stop (pid: #{server_pid})")
+                  server_stop_graceful(server_pid)
+                when :restart_forced
+                  @logger.info("server forced stop (pid: #{server_pid})")
+                  server_stop_forced(server_pid)
+                else
+                  @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
+                end
+
+                @process_wait_count_table[server_pid] = 0
+                server_pid = next_pid
+              else
+                @logger.warn("server continue (pid: #{server_pid})")
+              end
+            when :stat_get_and_reset
+              @logger.info("stat get(reset: true) (pid: #{server_pid})")
+              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
+            when :stat_get_no_reset
+              @logger.info("stat get(reset: false) (pid: #{server_pid})")
+              @sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
+            when :stat_stop
+              @logger.info("stat stop (pid: #{server_pid})")
+              @sysop.send_signal(server_pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{server_pid})")
             else
-              @logger.warn("server continue (pid: #{server_pid})")
+              @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
             end
-          when :stat_get_and_reset
-            @logger.info("stat get(reset: true) (pid: #{server_pid})")
-            @sysop.send_signal(server_pid, SIGNAL_STAT_GET_AND_RESET) or @logger.error("failed to stat get(reset: true) (pid: #{server_pid})")
-          when :stat_get_no_reset
-            @logger.info("stat get(reset: false) (pid: #{server_pid})")
-            @sysop.send_signal(server_pid, SIGNAL_STAT_GET_NO_RESET) or @logger.error("failed to stat get(reset: false) (pid: #{server_pid})")
-          when :stat_stop
-            @logger.info("stat stop (pid: #{server_pid})")
-            @sysop.send_signal(server_pid, SIGNAL_STAT_STOP) or @logger.error("failed to stat stop (pid: #{server_pid})")
-          else
-            @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
           end
-        end
 
-        for pid in @process_wait_count_table.keys
-          if (@sysop.wait(pid, Process::WNOHANG)) then
-            @logger.info("server stop completed (pid: #{pid})")
-            @process_wait_count_table.delete(pid)
-          else
-            @process_wait_count_table[pid] += 1
-            if (@process_wait_count_table[pid] >= 2) then
-              @logger.warn("not stopped server process (pid: #{pid})")
+          for pid in @process_wait_count_table.keys
+            if (@sysop.wait(pid, Process::WNOHANG)) then
+              @logger.info("server stop completed (pid: #{pid})")
+              @process_wait_count_table.delete(pid)
+            else
+              @process_wait_count_table[pid] += 1
+              if (@process_wait_count_table[pid] >= 2) then
+                @logger.warn("not stopped server process (pid: #{pid})")
+              end
             end
           end
         end
-      end
 
-      if (server_pid) then
-        case (@stop_state)
-        when :graceful
-          @logger.info("server graceful stop (pid: #{server_pid})")
-          unless (server_stop_graceful(server_pid)) then
-            @logger.fatal('failed to stop daemon.')
-            return 1
-          end
-          unless (@sysop.wait(server_pid)) then
-            @logger.fatal('failed to stop daemon.')
-            return 1
-          end
-        when :forced
-          @logger.info("server forced stop (pid: #{server_pid})")
-          unless (server_stop_forced(server_pid)) then
-            @logger.fatal('failed to stop daemon.')
-            return 1
-          end
-          unless (@sysop.wait(server_pid)) then
-            @logger.fatal('failed to stop daemon.')
+        if (server_pid) then
+          case (@stop_state)
+          when :graceful
+            @logger.info("server graceful stop (pid: #{server_pid})")
+            unless (server_stop_graceful(server_pid)) then
+              @logger.fatal('failed to stop daemon.')
+              return 1
+            end
+            unless (@sysop.wait(server_pid)) then
+              @logger.fatal('failed to stop daemon.')
+              return 1
+            end
+          when :forced
+            @logger.info("server forced stop (pid: #{server_pid})")
+            unless (server_stop_forced(server_pid)) then
+              @logger.fatal('failed to stop daemon.')
+              return 1
+            end
+            unless (@sysop.wait(server_pid)) then
+              @logger.fatal('failed to stop daemon.')
+              return 1
+            end
+          else
+            @logger.error("internal error: unknown stop state <#{@stop_state.inspect}>")
             return 1
           end
         else
-          @logger.error("internal error: unknown stop state <#{@stop_state.inspect}>")
-          return 1
+          @logger.warn('no server to stop.')
         end
-      else
-        @logger.warn('no server to stop.')
+      ensure
+        @logger.info("close server socket: #{server_socket.local_address.inspect_sockaddr}")
+        @sysop.close(server_socket) or @logger.warn("failed to close server socket: #{server_address}")
+        if (server_address.type == :unix) then
+          @logger.info("delete unix server socket: (#{server_address})")
+          @sysop.unlink(server_address.path) or @logger.warn("failed to delete unix server socket: #{server_address}")
+        end
       end
 
       @logger.info('daemon stop.')

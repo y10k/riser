@@ -532,7 +532,7 @@ module Riser::Test
         assert_match(/\A \d+ \z/x, @recorder.get_file_records[1])
         assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
       ensure
-        FileUtils.rm_f(unix_socket_path_list)
+        FileUtils.rm_f(unix_socket_path_list[0])
       end
     end
 
@@ -706,7 +706,7 @@ module Riser::Test
         assert_not_equal(@recorder.get_file_records[0], @recorder.get_file_records[1])
       ensure
         s.close
-        FileUtils.rm_f(unix_socket_path_list)
+        FileUtils.rm_f(unix_socket_path_list[1])
       end
     end
 
