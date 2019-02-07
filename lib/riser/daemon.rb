@@ -36,11 +36,12 @@ module Riser
 
   class RootProcess
     class SystemOperation
-      def initialize(logger, module_FileUtils: FileUtils, module_Process: Process, class_IO: IO)
+      def initialize(logger, module_FileUtils: FileUtils, module_Process: Process, class_IO: IO, class_File: File)
         @logger = logger
         @FileUtils = module_FileUtils
         @Process = module_Process
         @IO = class_IO
+        @File = class_File
       end
 
       def get_server_address(sockaddr_get)
@@ -155,6 +156,16 @@ module Riser
           io
         rescue
           @logger.error("failed to close(2) #{io.inspect} [#{$!} (#{$!.class})]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
+      def unlink(path)
+        begin
+          File.unlink(path)
+        rescue
+          @logger.error("failed to unlink(2): #{path} [#{$!} (#{$!.class})]")
           @logger.debug($!) if @logger.debug?
           nil
         end

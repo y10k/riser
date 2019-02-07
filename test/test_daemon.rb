@@ -1024,6 +1024,22 @@ module Riser::Test
 
       assert_nil(@sysop.close(o))
     end
+
+    def test_unlink
+      f = 'unlink_test.tmp'
+      FileUtils.touch(f)
+      begin
+        assert_equal(1, @sysop.unlink(f))
+      ensure
+        FileUtils.rm_f(f)
+      end
+    end
+
+    def test_unlink_fail
+      f = 'unlink_test.tmp'
+      assert(! (File.exist? f))
+      assert_nil(@sysop.unlink(f))
+    end
   end
 
   class DaemonTest < Test::Unit::TestCase
