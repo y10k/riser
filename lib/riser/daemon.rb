@@ -553,9 +553,8 @@ module Riser
         if (server_pid) then
           case (@stop_state)
           when :graceful
-            if (server_stop_graceful(server_pid)) then
-              @logger.info("server graceful stop (pid: #{server_pid})")
-            else
+            @logger.info("server graceful stop (pid: #{server_pid})")
+            unless (server_stop_graceful(server_pid)) then
               @logger.fatal('failed to stop daemon.')
               return 1
             end
@@ -564,9 +563,8 @@ module Riser
               return 1
             end
           when :forced
-            if (server_stop_forced(server_pid)) then
-              @logger.info("server forced stop (pid: #{server_pid})")
-            else
+            @logger.info("server forced stop (pid: #{server_pid})")
+            unless (server_stop_forced(server_pid)) then
               @logger.fatal('failed to stop daemon.')
               return 1
             end
@@ -575,8 +573,7 @@ module Riser
               return 1
             end
           else
-            @logger.error("internal error: unknown stop state <#{@stop_state.inspect}>")
-            return 1
+            @logger.warn("internal warning: unknown stop state <#{@stop_state.inspect}>")
           end
         else
           @logger.warn('no server to stop.')
