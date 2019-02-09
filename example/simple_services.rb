@@ -42,7 +42,8 @@ Riser::Daemon.start_daemon(daemonize: false,
           socket << 'pid: ' << services.call_service(:pid_single) << "\n"
         when '/sticky'
           key = query || 'default'
-          socket << 'key: ' << key << ', pid: ' << services.call_service(:pid_stickty, key) << "\n"
+          socket << 'key: ' << key << "\n"
+          socket << 'pid: ' << services.call_service(:pid_stickty, key) << "\n"
         else
           socket << "unknown path: #{path}\n"
         end

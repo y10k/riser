@@ -463,7 +463,8 @@ Riser::Daemon.start_daemon(daemonize: false,
           socket << 'pid: ' << services.call_service(:pid_single) << "\n"
         when '/sticky'
           key = query || 'default'
-          socket << 'key: ' << key << ', pid: ' << services.call_service(:pid_stickty, key) << "\n"
+          socket << 'key: ' << key << "\n"
+          socket << 'pid: ' << services.call_service(:pid_stickty, key) << "\n"
         else
           socket << "unknown path: #{path}\n"
         end
@@ -587,17 +588,23 @@ the web service's result of 'sticky process' pattern.
 
 ```
 $ curl http://localhost:8000/sticky
-key: default, pid: 3181
+key: default
+pid: 3181
 $ curl http://localhost:8000/sticky
-key: default, pid: 3181
+key: default
+pid: 3181
 $ curl http://localhost:8000/sticky?foo
-key: foo, pid: 3179
+key: foo
+pid: 3179
 $ curl http://localhost:8000/sticky?foo
-key: foo, pid: 3179
+key: foo
+pid: 3179
 $ curl http://localhost:8000/sticky?bar
-key: bar, pid: 3185
+key: bar
+pid: 3185
 $ curl http://localhost:8000/sticky?bar
-key: bar, pid: 3185
+key: bar
+pid: 3185
 ```
 
 In the 'sticky process' pattern, the same process id will be given for
@@ -651,7 +658,8 @@ Riser::Daemon.start_daemon(daemonize: false,
           socket << 'pid: ' << services.call_service(:pid_single) << "\n"
         when '/sticky'
           key = query || 'default'
-          socket << 'key: ' << key << ', pid: ' << services.call_service(:pid_stickty, key) << "\n"
+          socket << 'key: ' << key << "\n"
+          socket << 'pid: ' << services.call_service(:pid_stickty, key) << "\n"
         else
           socket << "unknown path: #{path}\n"
         end
@@ -711,17 +719,23 @@ pid: 3855
 
 ```
 $ curl http://localhost:8000/sticky
-key: default, pid: 3855
+key: default
+pid: 3855
 $ curl http://localhost:8000/sticky
-key: default, pid: 3855
+key: default
+pid: 3855
 $ curl http://localhost:8000/sticky?foo
-key: foo, pid: 3855
+key: foo
+pid: 3855
 $ curl http://localhost:8000/sticky?foo
-key: foo, pid: 3855
+key: foo
+pid: 3855
 $ curl http://localhost:8000/sticky?bar
-key: bar, pid: 3855
+key: bar
+pid: 3855
 $ curl http://localhost:8000/sticky?bar
-key: bar, pid: 3855
+key: bar
+pid: 3855
 ```
 
 ### dRuby Services Callbacks
