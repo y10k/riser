@@ -579,7 +579,7 @@ module Riser
         if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
           begin
             server_socket.accept_nonblock
-          rescue IO::WaitReadable
+          rescue IO::WaitReadable, Errno::EINTR
             nil                 # to avoid conflicting accept(2) at server restart overlap
           end
         end
@@ -739,7 +739,7 @@ module Riser
           if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
             begin
               server_socket.accept_nonblock
-            rescue IO::WaitReadable
+            rescue IO::WaitReadable, Errno::EINTR
               nil               # to avoid conflicting accept(2) at server restart overlap
             end
           end
