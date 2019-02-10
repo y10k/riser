@@ -580,7 +580,7 @@ module Riser
           begin
             server_socket.accept_nonblock
           rescue IO::WaitReadable, Errno::EINTR
-            nil                 # to avoid conflicting accept(2) at server restart overlap
+            nil                 # to trap conflicting accept(2) at server restart overlap
           end
         end
       }
@@ -740,7 +740,7 @@ module Riser
             begin
               server_socket.accept_nonblock
             rescue IO::WaitReadable, Errno::EINTR
-              nil               # to avoid conflicting accept(2) at server restart overlap
+              nil               # to trap conflicting accept(2) at server restart overlap
             end
           end
         }
