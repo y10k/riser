@@ -628,7 +628,7 @@ module Riser
 
     DEFAULT = {
       daemonize: true,
-      daemon_name: 'ruby',
+      daemon_name: 'ruby'.freeze,
       daemon_debug: $DEBUG,
       daemon_nochdir: true,
       status_file: nil,
