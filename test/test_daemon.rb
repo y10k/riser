@@ -775,17 +775,17 @@ module Riser::Test
       }
 
       Process.kill(SIGNAL_STAT_GET_AND_RESET, pid)
-      sleep(@dt * 10)
+      sleep(@dt * 50)
 
       assert_equal(%w[ stat ], @recorder.get_file_records)
 
       Process.kill(SIGNAL_STAT_GET_NO_RESET, pid)
-      sleep(@dt * 10)
+      sleep(@dt * 50)
 
       assert_equal(%w[ stat stat ], @recorder.get_file_records)
 
       Process.kill(SIGNAL_STAT_STOP, pid)
-      sleep(@dt * 10)
+      sleep(@dt * 50)
 
       assert_equal(%w[ stat stat ], @recorder.get_file_records)
     end
@@ -837,17 +837,17 @@ module Riser::Test
         assert_match(/\A \d+ \z/x, @recorder.get_file_records[0])
 
         Process.kill(SIGNAL_STAT_GET_AND_RESET, pid)
-        sleep(@dt * 10)
+        sleep(@dt * 50)
 
         assert_equal(0, @recorder.get_file_records.count('stat'))
 
         Process.kill(SIGNAL_STAT_GET_NO_RESET, pid)
-        sleep(@dt * 10)
+        sleep(@dt * 50)
 
         assert_equal(0, @recorder.get_file_records.count('stat'))
 
         Process.kill(SIGNAL_STAT_STOP, pid)
-        sleep(@dt * 10)
+        sleep(@dt * 50)
 
         assert_equal(0, @recorder.get_file_records.count('stat'))
 
