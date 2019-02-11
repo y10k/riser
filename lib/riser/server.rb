@@ -183,9 +183,14 @@ module Riser
       def accept_timeout(timeout_seconds)
         if (wait_readable(timeout_seconds) != nil) then
           begin
-            accept_nonblock
-          rescue IO::WaitReadable, Errno::EINTR
-            nil                 # to trap conflicting accept(2) at server restart overlap
+            if (socket = accept_nonblock(exception: false)) then
+              # to ignore conflicting accept(2) at server restart overlap
+              if (socket != :wait_readable) then
+                socket
+              end
+            end
+          rescue Errno::EINTR   # EINTR is not captured by `exception: false'
+            nil
           end
         end
       end
