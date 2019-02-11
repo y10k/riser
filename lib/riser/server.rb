@@ -181,17 +181,21 @@ module Riser
 
     refine ServerSocketMethod do
       def accept_timeout(timeout_seconds)
-        if (wait_readable(timeout_seconds) != nil) then
-          begin
-            if (socket = accept_nonblock(exception: false)) then
+        begin
+          socket = accept_nonblock(exception: false)
+          if (socket != :wait_readable) then
+            socket
+          else
+            if (wait_readable(timeout_seconds) != nil) then
+              socket = accept_nonblock(exception: false)
               # to ignore conflicting accept(2) at server restart overlap
               if (socket != :wait_readable) then
                 socket
               end
             end
-          rescue Errno::EINTR   # EINTR is not captured by `exception: false'
-            nil
           end
+        rescue Errno::EINTR   # EINTR is not captured by `exception: false'
+          nil
         end
       end
     end
