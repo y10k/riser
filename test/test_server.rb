@@ -118,6 +118,56 @@ module Riser::Test
     end
   end
 
+  class AcceptTimeoutTest < Test::Unit::TestCase
+    using Riser::AcceptTimeout
+
+    def setup
+      @unix_socket_path = Riser::TemporaryPath.make_unix_socket_path
+      @server_socket = nil
+    end
+
+    def teardown
+      if (@server_socket && ! @server_socket.closed?) then
+        @server_socket.close
+      end
+      FileUtils.rm_f(@unix_socket_path)
+    end
+
+    def test_tcp_server_socket
+      @server_socket = TCPServer.new('localhost', 0)
+      assert_nil(@server_socket.accept_timeout(0.001))
+
+      c = TCPSocket.new('localhost', @server_socket.connect_address.ip_port)
+      begin
+        s = @server_socket.accept_timeout(0.001)
+        begin
+          assert_instance_of(TCPSocket, s)
+        ensure
+          s.close
+        end
+      ensure
+        c.close
+      end
+    end
+
+    def test_unix_server_socket
+      @server_socket = UNIXServer.new(@unix_socket_path)
+      assert_nil(@server_socket.accept_timeout(0.001))
+
+      c = UNIXSocket.new(@unix_socket_path)
+      begin
+        s = @server_socket.accept_timeout(0.001)
+        begin
+          assert_instance_of(UNIXSocket, s)
+        ensure
+          s.close
+        end
+      ensure
+        c.close
+      end
+    end
+  end
+
   class MultiThreadSocketServerTest < Test::Unit::TestCase
     include Riser::ServerSignal
     include Timeout

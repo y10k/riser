@@ -3,6 +3,7 @@
 require 'riser/version'
 
 module Riser
+  autoload :AcceptTimeout, 'riser/server'
   autoload :DRbServiceCall, 'riser/services'
   autoload :DRbServiceServer, 'riser/services'
   autoload :DRbServices, 'riser/services'

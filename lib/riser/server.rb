@@ -173,6 +173,26 @@ module Riser
     SIGNAL_RESTART_FORCED     = :QUIT
   end
 
+  module AcceptTimeout
+    module ServerSocketMethod
+    end
+    ::TCPServer.class_eval{ include ServerSocketMethod }
+    ::UNIXServer.class_eval{ include ServerSocketMethod }
+
+    refine ServerSocketMethod do
+      def accept_timeout(timeout_seconds)
+        if (wait_readable(timeout_seconds) != nil) then
+          begin
+            accept_nonblock
+          rescue IO::WaitReadable, Errno::EINTR
+            nil                 # to trap conflicting accept(2) at server restart overlap
+          end
+        end
+      end
+    end
+  end
+  using AcceptTimeout
+
   class SocketThreadDispatcher
     def initialize(thread_queue_name)
       @thread_num = nil
@@ -576,13 +596,7 @@ module Riser
       @process_dispatcher.postprocess(&NO_CALL)
 
       @process_dispatcher.accept{
-        if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
-          begin
-            server_socket.accept_nonblock
-          rescue IO::WaitReadable, Errno::EINTR
-            nil                 # to trap conflicting accept(2) at server restart overlap
-          end
-        end
+        server_socket.accept_timeout(@accept_polling_timeout_seconds)
       }
       @process_dispatcher.accept_return(&NO_CALL)
       @process_dispatcher.dispatch{|socket|
@@ -736,13 +750,7 @@ module Riser
         @dispatcher.preprocess(&@preprocess)
         @dispatcher.postprocess(&@postprocess)
         @dispatcher.accept{
-          if (server_socket.wait_readable(@accept_polling_timeout_seconds) != nil) then
-            begin
-              server_socket.accept_nonblock
-            rescue IO::WaitReadable, Errno::EINTR
-              nil               # to trap conflicting accept(2) at server restart overlap
-            end
-          end
+          server_socket.accept_timeout(@accept_polling_timeout_seconds)
         }
         @dispatcher.accept_return(&NO_CALL)
         @dispatcher.dispatch(&@dispatch)
