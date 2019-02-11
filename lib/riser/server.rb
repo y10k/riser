@@ -336,10 +336,10 @@ module Riser
         queue = TimeoutSizedQueue.new(@thread_queue_size, name: @thread_queue_name)
         begin
           thread_list = []
-          @thread_num.times{|i|
-            thread_list << Thread.new{
+          @thread_num.times do |i|
+            thread_list << Thread.start(i) {|thread_number|
               begin
-                Thread.current[:number] = i
+                Thread.current[:number] = thread_number
                 while (socket = queue.pop)
                   begin
                     @dispatch.call(socket)
@@ -353,7 +353,7 @@ module Riser
                 }
               end
             }
-          }
+          end
 
           catch (:end_of_server) {
             while (true)

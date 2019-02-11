@@ -51,20 +51,20 @@ module Riser::Test
       push_values = (1..@count_max).to_a
       barrier = CyclicBarrier.new(@thread_num + 1)
 
-      @thread_num.times{
+      @thread_num.times do
         t = { :pop_values => [] }
-        t[:thread] = Thread.new{
+        t[:thread] = Thread.start(t[:pop_values]) {|pop_values|
           barrier.wait
           begin
             while (value = queue.pop)
-              t[:pop_values] << value
+              pop_values << value
             end
           ensure
             barrier.wait
           end
         }
         @thread_list << t
-      }
+      end
 
       measure_elapsed_time 'queue' do
         barrier.wait
@@ -92,20 +92,20 @@ module Riser::Test
       push_values = (1..@count_max).to_a
       barrier = CyclicBarrier.new(@thread_num + 1)
 
-      @thread_num.times{
+      @thread_num.times do
         t = { :pop_values => [] }
-        t[:thread] = Thread.new{
+        t[:thread] = Thread.start(t[:pop_values]) {|pop_values|
           barrier.wait
           begin
             while (value = queue.pop)
-              t[:pop_values] << value
+              pop_values << value
             end
           ensure
             barrier.wait
           end
         }
         @thread_list << t
-      }
+      end
 
       measure_elapsed_time 'sized queue' do
         barrier.wait
@@ -134,20 +134,20 @@ module Riser::Test
       push_values = (1..@count_max).to_a
       barrier = CyclicBarrier.new(@thread_num + 1)
 
-      @thread_num.times{
+      @thread_num.times do
         t = { :pop_values => [] }
-        t[:thread] = Thread.new{
+        t[:thread] = Thread.start(t[:pop_values]) {|pop_values|
           barrier.wait
           begin
             while (value = queue.pop)
-              t[:pop_values] << value
+              pop_values << value
             end
           ensure
             barrier.wait
           end
         }
         @thread_list << t
-      }
+      end
 
       measure_elapsed_time 'timeout sized queue' do
         barrier.wait

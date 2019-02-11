@@ -82,15 +82,15 @@ module Riser::Test
     end
 
     def test_push_pop_multithread
-      @thread_num.times{
+      @thread_num.times do
         t = { :pop_values => [] }
-        t[:thread] = Thread.new{
+        t[:thread] = Thread.start(t[:pop_values]) {|pop_values|
           while (value = @queue.pop)
-            t[:pop_values] << value
+            pop_values << value
           end
         }
         @thread_list << t
-      }
+      end
 
       push_values = (1..@count_max).to_a
       while (value = push_values.shift)
