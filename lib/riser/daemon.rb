@@ -270,6 +270,65 @@ module Riser
     end
     private :server_stop_forced
 
+    def server_socket_option(server_socket, server_address)
+      if (server_address.backlog) then
+        if (@sysop.listen(server_socket, server_address.backlog)) then
+          @logger.info("server socket backlog: #{server_address.backlog}")
+        else
+          @logger.warn('server socket backlog is not changed.')
+        end
+      else
+        @logger.info('server socket backlog is default.')
+      end
+
+      if (server_address.type == :unix) then
+        if (server_address.mode) then
+          if (@sysop.chmod(server_address.mode, server_address.path)) then
+            @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
+          else
+            @logger.warn('unix domain server socket mode is not changed.')
+          end
+        else
+          @logger.info('unix domain server socket mode is default.')
+        end
+
+        if (server_address.owner || server_address.group) then
+          if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
+            @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
+          else
+            @logger.warn('unix domain server socket ownership is not changed.')
+          end
+        else
+          @logger.info('unix domain server socket ownership is default.')
+        end
+      end
+
+      nil
+    end
+    private :server_socket_option
+
+    def server_socket_close(server_socket, server_address)
+      # get local_address before close(2)
+      server_socket_local_address = server_socket.local_address
+
+      if (@sysop.close(server_socket)) then
+        @logger.info("close server socket: #{server_socket_local_address.inspect_sockaddr}") 
+      else
+        @logger.warn("failed to close server socket: #{server_socket_local_address.inspect_sockaddr}")
+      end
+
+      if (server_address.type == :unix) then
+        if (@sysop.unlink(server_address.path)) then
+          @logger.info("delete unix server socket: #{server_address}")
+        else
+          @logger.warn("failed to delete unix server socket: #{server_address}")
+        end
+      end
+
+      nil
+    end
+    private :server_socket_close
+
     def run_server(server_socket)
       read_write = @sysop.pipe
       unless (read_write) then
@@ -357,37 +416,7 @@ module Riser
       @logger.info("open server socket: #{server_socket.local_address.inspect_sockaddr}")
 
       begin
-        if (server_address.backlog) then
-          if (@sysop.listen(server_socket, server_address.backlog)) then
-            @logger.info("server socket backlog: #{server_address.backlog}")
-          else
-            @logger.warn('server socket backlog is not changed.')
-          end
-        else
-          @logger.info('server socket backlog is default.')
-        end
-
-        if (server_address.type == :unix) then
-          if (server_address.mode) then
-            if (@sysop.chmod(server_address.mode, server_address.path)) then
-              @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
-            else
-              @logger.warn('unix domain server socket mode is not changed.')
-            end
-          else
-            @logger.info('unix domain server socket mode is default.')
-          end
-
-          if (server_address.owner || server_address.group) then
-            if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
-              @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
-            else
-              @logger.warn('unix domain server socket ownership is not changed.')
-            end
-          else
-            @logger.info('unix domain server socket ownership is default.')
-          end
-        end
+        server_socket_option(server_socket, server_address)
 
         unless (server_pid = run_server(server_socket)) then
           @logger.fatal('failed to start daemon.')
@@ -426,19 +455,7 @@ module Riser
                 else
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
                     @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
-                    server_socket_local_address = server_socket.local_address # get local_address before close(2)
-                    if (@sysop.close(server_socket)) then
-                      @logger.info("close server socket: #{server_socket_local_address.inspect_sockaddr}") 
-                    else
-                      @logger.warn("failed to close server socket: #{server_socket_local_address.inspect_sockaddr}")
-                    end
-                    if (server_address.type == :unix) then
-                      if (@sysop.unlink(server_address.path)) then
-                        @logger.info("delete unix server socket: #{server_address}")
-                      else
-                        @logger.warn("failed to delete unix server socket: #{server_address}")
-                      end
-                    end
+                    server_socket_close(server_socket, server_address)
                     server_socket = next_server_socket
                     server_address = next_server_address
                   else
@@ -448,38 +465,7 @@ module Riser
               else
                 @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
               end
-
-              if (server_address.backlog) then
-                if (@sysop.listen(server_socket, server_address.backlog)) then
-                  @logger.info("server socket backlog: #{server_address.backlog}")
-                else
-                  @logger.warn('server socket backlog is not changed.')
-                end
-              else
-                @logger.info('server socket backlog is default.')
-              end
-
-              if (server_address.type == :unix) then
-                if (server_address.mode) then
-                  if (@sysop.chmod(server_address.mode, server_address.path)) then
-                    @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
-                  else
-                    @logger.warn('unix domain server socket mode is not changed.')
-                  end
-                else
-                  @logger.info('unix domain server socket mode is default.')
-                end
-
-                if (server_address.owner || server_address.group) then
-                  if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
-                    @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
-                  else
-                    @logger.warn('unix domain server socket ownership is not changed.')
-                  end
-                else
-                  @logger.info('unix domain server socket ownership is default.')
-                end
-              end
+              server_socket_option(server_socket, server_address)
 
               case (sig_ope)
               when :restart_graceful
@@ -579,19 +565,7 @@ module Riser
           @logger.warn('no server to stop.')
         end
       ensure
-        server_socket_local_address = server_socket.local_address # get local_address before close(2)
-        if (@sysop.close(server_socket)) then
-          @logger.info("close server socket: #{server_socket_local_address.inspect_sockaddr}") 
-        else
-          @logger.warn("failed to close server socket: #{server_socket_local_address.inspect_sockaddr}")
-        end
-        if (server_address.type == :unix) then
-          if (@sysop.unlink(server_address.path)) then
-            @logger.info("delete unix server socket: #{server_address}")
-          else
-            @logger.warn("failed to delete unix server socket: #{server_address}")
-          end
-        end
+        server_socket_close(server_socket, server_address)
       end
 
       @logger.info('daemon stop.')
