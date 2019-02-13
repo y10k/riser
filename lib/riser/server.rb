@@ -2,6 +2,7 @@
 
 require 'io/wait'
 require 'socket'
+require 'tempfile'
 
 module Riser
   class TimeoutSizedQueue
@@ -512,10 +513,17 @@ module Riser
         socket_class = IO
       end
 
+      parent_latch_file = Tempfile.open('riser_latch_')
+      child_latch_file = File.open(parent_latch_file.path, File::RDWR)
+      child_latch_file.flock(File::LOCK_EX | File::LOCK_NB) or raise "internal error: failed to lock latch file: #{parent_latch_file.path}"
+      parent_latch_file.unlink
+
       process_list = []
       @process_num.times do |pos|
         child_io, parent_io = UNIXSocket.socketpair
         pid = Process.fork{
+          parent_latch_file.close
+
           parent_io.close
           pos.times do |i|
             process_list[i].io.close
@@ -549,6 +557,9 @@ module Riser
           Signal.trap(SIGNAL_STAT_GET_NO_RESET) { thread_dispatcher.signal_stat_get(reset: false) }
           Signal.trap(SIGNAL_STAT_STOP) { thread_dispatcher.signal_stat_stop }
 
+          # release flock(2)
+          child_latch_file.close
+
           begin
             @at_fork.call
             thread_dispatcher.start
@@ -560,6 +571,10 @@ module Riser
 
         process_list << SocketProcess.new(pid, parent_io)
       end
+
+      child_latch_file.close
+      parent_latch_file.flock(File::LOCK_EX) # wait to release flock(2) at child processes
+      parent_latch_file.close
 
       setup unless @process_dispatcher
       @process_dispatcher.thread_num = @process_num
