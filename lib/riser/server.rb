@@ -505,6 +505,11 @@ module Riser
       nil
     end
 
+    SEND_CMD = "SEND\n".freeze  # :nodoc:
+    SEND_LEN = SEND_CMD.length  # :nodoc:
+    RADY_CMD = "RADY\n".freeze  # :nodoc:
+    RADY_LEN = RADY_CMD.length  # :nodoc:
+
     def start(server_socket)
       case (server_socket)
       when TCPServer, UNIXServer
@@ -543,12 +548,12 @@ module Riser
 
           thread_dispatcher.accept{
             if (child_io.wait_readable(@process_send_io_polling_timeout_seconds) != nil) then
-              command = child_io.read(5)
-              command == "SEND\n" or raise "internal error: unknown command <#{command.inspect}>"
+              command = child_io.read(SEND_LEN)
+              command == SEND_CMD or raise "internal error: unknown command <#{command.inspect}>"
               child_io.recv_io(socket_class)
             end
           }
-          thread_dispatcher.accept_return{ child_io.write("RADY\n") }
+          thread_dispatcher.accept_return{ child_io.write(RADY_CMD) }
           thread_dispatcher.dispatch(&@dispatch)
 
           Signal.trap(SIGNAL_STOP_GRACEFUL) { thread_dispatcher.signal_stop_graceful }
@@ -619,10 +624,10 @@ module Riser
       @process_dispatcher.accept_return(&NO_CALL)
       @process_dispatcher.dispatch{|socket|
         process = process_list[Thread.current[:number]]
-        process.io.write("SEND\n")
+        process.io.write(SEND_CMD)
         process.io.send_io(socket)
-        response = process.io.read(5)
-        response == "RADY\n" or raise "internal error: unknown response <#{response.inspect}>"
+        response = process.io.read(RADY_LEN)
+        response == RADY_CMD or raise "internal error: unknown response <#{response.inspect}>"
       }
       @process_dispatcher.start
 
