@@ -70,6 +70,16 @@ module Riser
         end
       end
 
+      def get_socket_address(server_socket)
+        begin
+          server_socket.local_address.inspect_sockaddr
+        rescue
+          @logger.error("failed to get socket address: #{server_socket} [#{$!} (#{$!.class})]")
+          @logger.debug($!) if @logger.debug?
+          nil
+        end
+      end
+
       def listen(server_socket, backlog)
         begin
           server_socket.listen(backlog)

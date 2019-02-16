@@ -908,6 +908,24 @@ module Riser::Test
       end
     end
 
+    def test_get_socket_address
+      unix_path = Riser::TemporaryPath.make_unix_socket_path
+      s = UNIXServer.new(unix_path)
+      begin
+        assert_equal(unix_path, @sysop.get_socket_address(s))
+      ensure
+        s.close
+      end
+    end
+
+    def test_get_socket_address_fail_local_address
+      o = Object.new
+      def o.local_address
+        raise 'abort'
+      end
+      assert_nil(@sysop.get_socket_address(o))
+    end
+
     def test_listen
       s = TCPServer.new(0)
       begin
