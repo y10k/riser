@@ -375,7 +375,9 @@ module Riser
           raise
         end
         @logger.close
+
         latch_write_io.puts("server process (pid: #{$$}) is ready to go.")
+        latch_write_io.close
 
         server.start(server_socket)
       }
