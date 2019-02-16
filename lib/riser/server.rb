@@ -301,23 +301,21 @@ module Riser
     end
 
     def apply_signal_stat(queue)
-      unless (@stat_operation_queue.empty?) then
-        while (stat_ope = @stat_operation_queue.shift)
-          case (stat_ope)
-          when :get_and_reset
-            queue.stat_start
-            @at_stat.call(queue.stat_get(reset: true))
-            @at_stat_get.call(true)
-          when :get
-            queue.stat_start
-            @at_stat.call(queue.stat_get(reset: false))
-            @at_stat_get.call(false)
-          when :stop
-            queue.stat_stop
-            @at_stat_stop.call
-          else
-            raise "internal error: unknown stat operation <#{stat_ope.inspect}>"
-          end
+      while (stat_ope = @stat_operation_queue.shift)
+        case (stat_ope)
+        when :get_and_reset
+          queue.stat_start
+          @at_stat.call(queue.stat_get(reset: true))
+          @at_stat_get.call(true)
+        when :get
+          queue.stat_start
+          @at_stat.call(queue.stat_get(reset: false))
+          @at_stat_get.call(false)
+        when :stop
+          queue.stat_stop
+          @at_stat_stop.call
+        else
+          raise "internal error: unknown stat operation <#{stat_ope.inspect}>"
         end
       end
     end
