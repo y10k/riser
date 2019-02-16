@@ -319,12 +319,12 @@ module Riser
 
     def server_socket_close(server_socket, server_address)
       # get local_address before close(2)
-      server_socket_local_address = server_socket.local_address
+      server_socket_address = @sysop.get_socket_address(server_socket) || server_address
 
       if (@sysop.close(server_socket)) then
-        @logger.info("close server socket: #{server_socket_local_address.inspect_sockaddr}") 
+        @logger.info("close server socket: #{server_socket_address}")
       else
-        @logger.warn("failed to close server socket: #{server_socket_local_address.inspect_sockaddr}")
+        @logger.warn("failed to close server socket: #{server_socket_address}")
       end
 
       if (server_address.type == :unix) then
@@ -423,7 +423,7 @@ module Riser
         @logger.fatal('failed to start daemon.')
         return 1
       end
-      @logger.info("open server socket: #{server_socket.local_address.inspect_sockaddr}")
+      @logger.info("open server socket: #{@sysop.get_socket_address(server_socket) || server_address}")
 
       begin
         server_socket_option(server_socket, server_address)
@@ -464,16 +464,16 @@ module Riser
                   end
                 else
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
-                    @logger.info("open server socket: #{next_server_socket.local_address.inspect_sockaddr}")
+                    @logger.info("open server socket: #{@sysop.get_socket_address(next_server_socket) || next_server_address}")
                     server_socket_close(server_socket, server_address)
                     server_socket = next_server_socket
                     server_address = next_server_address
                   else
-                    @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+                    @logger.warn("server socket continue: #{@sysop.get_socket_address(server_socket) || server_address}")
                   end
                 end
               else
-                @logger.warn("server socket continue: #{server_socket.local_address.inspect_sockaddr}")
+                @logger.warn("server socket continue: #{@sysop.get_socket_address(server_socket) || server_address}")
               end
               server_socket_option(server_socket, server_address)
 
