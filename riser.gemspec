@@ -13,7 +13,7 @@ Gem::Specification.new do |spec|
   spec.summary       = %q{Riser is a library of Ruby Infrastructure for cooperative multi-thread/multi-process SERver}
   spec.description   = <<-'EOF'
     Riser is a library of Ruby Infrastructure for cooperative multi-thread/multi-process SERver.
-    This library is useful to make multi-thread/multi-process socket server and daemon. 
+    This library is useful to make multi-thread/multi-process socket server and daemon.
   EOF
   spec.homepage      = "https://github.com/y10k/riser"
   spec.license       = "MIT"
