@@ -79,7 +79,7 @@ module Riser::Test
       @logger = Logger.new(STDOUT)
       def @logger.close         # not close STDOUT
       end
-      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL.succ
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::UNKNOWN
       @dt = 0.001
       @daemon_start_wait_path = 'root_process_start'
       @recorder = CallRecorder.new('daemon_test')
@@ -863,7 +863,7 @@ module Riser::Test
       @logger = Logger.new(STDOUT)
       def @logger.close         # not close STDOUT
       end
-      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::FATAL.succ
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::UNKNOWN
       @sysop = Riser::RootProcess::SystemOperation.new(@logger)
     end
 
