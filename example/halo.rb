@@ -48,11 +48,11 @@ OptionParser.new{|opts|
 }.parse!
 
 name = File.basename($0, '.rb')
-HALO = IO.read(File.join(File.dirname($0), "#{name}.html"))
 server_log   = File.join(File.dirname($0), "#{name}.log")
 protocol_log = File.join(File.dirname($0), 'protocol.log')
 status_file  = File.join(File.dirname($0), "#{name}.pid")
 config_path  = File.join(File.dirname($0), "#{name}.yml")
+halo_html    = File.join(File.dirname($0), "#{name}.html")
 
 config = YAML.load_file(config_path)['daemon']
 
@@ -107,6 +107,8 @@ Riser::Daemon.start_daemon(daemonize: options[:daemonize],
   server.preprocess{ logger.info('preprocess') }
   server.postprocess{ logger.info('postprocess') }
 
+  halo = File.read(halo_html)
+
   server.dispatch{|socket|
     begin
       read_poll = Riser::ReadPoll.new(socket)
@@ -141,10 +143,10 @@ Riser::Daemon.start_daemon(daemonize: options[:daemonize],
             when 'GET', 'HEAD'
               stream << "HTTP/1.0 200 OK\r\n"
               stream << "Content-Type: text/html\r\n"
-              stream << "Content-Length: #{HALO.bytesize}\r\n"
+              stream << "Content-Length: #{halo.bytesize}\r\n"
               stream << "Date: #{t.httpdate}\r\n"
               stream << "\r\n"
-              stream << HALO if (method == 'GET')
+              stream << halo if (method == 'GET')
             else
               stream << "HTTP/1.0 405 Method Not Allowed\r\n"
               stream << "Content-Type: text/plain\r\n"
