@@ -75,7 +75,7 @@ module Riser
           @stat_pop_wait_count += 1 if @stat_enable
           @pop_cond.wait(@mutex)
         end
-        @push_cond.signal if (@queue.length == @size)
+        @push_cond.signal if (@queue.size == @size)
         @queue.shift
       }
     end
