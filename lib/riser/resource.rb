@@ -23,7 +23,7 @@ module Riser
       end
 
       def proxy_count
-        @mutex.synchronize{ @ref_proxy.length }
+        @mutex.synchronize{ @ref_proxy.size }
       end
 
       def ref_object?
@@ -227,7 +227,7 @@ module Riser
       end
 
       def proxy_count
-        @mutex.synchronize{ @ref_proxy.length }
+        @mutex.synchronize{ @ref_proxy.size }
       end
 
       def ref_object?(access_key)
