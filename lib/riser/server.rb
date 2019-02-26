@@ -6,8 +6,8 @@ require 'tempfile'
 
 module Riser
   class TimeoutSizedQueue
-    def initialize(size, name: nil)
-      @size = size
+    def initialize(max_size, name: nil)
+      @max_size = max_size
       @queue = []
       @closed = false
       @mutex = Thread::Mutex.new
@@ -50,10 +50,10 @@ module Riser
           @stat_push_count += 1
           @stat_push_average_queue_size = (@stat_push_average_queue_size * (@stat_push_count - 1) + @queue.size) / @stat_push_count
         end
-        unless (@queue.size < @size) then
+        unless (@queue.size < @max_size) then
           @stat_push_wait_count += 1 if @stat_enable
           @push_cond.wait(@mutex, timeout_seconds)
-          unless (@queue.size < @size) then
+          unless (@queue.size < @max_size) then
             @stat_push_timeout_count += 1 if @stat_enable
             return
           end
@@ -75,7 +75,7 @@ module Riser
           @stat_pop_wait_count += 1 if @stat_enable
           @pop_cond.wait(@mutex)
         end
-        @push_cond.signal if (@queue.size == @size)
+        @push_cond.signal if (@queue.size == @max_size)
         @queue.shift
       }
     end
@@ -115,7 +115,7 @@ module Riser
         @mutex.synchronize{
           info = {
             queue_name:              @name,
-            queue_size:              @size,
+            max_size:                @max_size,
             closed:                  @closed,
             start_time:              @stat_start_time,
             push_average_queue_size: @stat_push_average_queue_size,
@@ -140,7 +140,7 @@ module Riser
 
         # sort
         [ :queue_name,
-          :queue_size,
+          :max_size,
           :closed,
           :start_time,
           :get_time,
