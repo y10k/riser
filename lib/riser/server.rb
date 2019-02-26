@@ -503,10 +503,10 @@ module Riser
       nil
     end
 
-    SEND_CMD = "SEND\n".freeze  # :nodoc:
-    SEND_LEN = SEND_CMD.length  # :nodoc:
-    RADY_CMD = "RADY\n".freeze  # :nodoc:
-    RADY_LEN = RADY_CMD.length  # :nodoc:
+    SEND_CMD = "SEND\n".freeze   # :nodoc:
+    SEND_LEN = SEND_CMD.bytesize # :nodoc:
+    RADY_CMD = "RADY\n".freeze   # :nodoc:
+    RADY_LEN = RADY_CMD.bytesize # :nodoc:
 
     def start(server_socket)
       case (server_socket)
