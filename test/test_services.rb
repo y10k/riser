@@ -1247,9 +1247,10 @@ module Riser::Test
 
       @services.start_server
       begin
-        assert_raise(RuntimeError) {
+        error = assert_raise(RuntimeError) {
           @services.start_client
         }
+        assert_equal('abort', error.message)
       ensure
         @services.stop_server
       end
@@ -1310,7 +1311,8 @@ module Riser::Test
       begin
         @services.start_client
       ensure
-        assert_raise(RuntimeError) { @services.stop_server }
+        error = assert_raise(RuntimeError) { @services.stop_server }
+        assert_equal('abort', error.message)
       end
 
       assert_equal(%w[

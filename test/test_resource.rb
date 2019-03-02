@@ -217,7 +217,8 @@ module Riser::Test
       assert_equal(0, resource.proxy_count)
       assert_equal(false, resource.ref_object?)
 
-      assert_raise(RuntimeError) { resource.call }
+      error = assert_raise(RuntimeError) { resource.call }
+      assert_equal('abort', error.message)
       assert_equal(%w[ at_create ], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
       assert_equal(0, resource.proxy_count)
@@ -247,13 +248,15 @@ module Riser::Test
       assert_equal(1, resource.proxy_count)
       assert_equal(true, resource.ref_object?)
 
-      assert_raise(RuntimeError) { array.__unref__ }
+      error = assert_raise(RuntimeError) { array.__unref__ }
+      assert_equal('abort', error.message)
       assert_equal(%w[ at_create at_destroy ], @recorder.get_memory_records)
       assert_equal(0, resource.ref_count)
       assert_equal(0, resource.proxy_count)
       assert_equal(false, resource.ref_object?)
 
-      assert_raise(ArgumentError) { array.__getobj__ }
+      error = assert_raise(ArgumentError) { array.__getobj__ }
+      assert_match(/not delegated/, error.message)
     end
   end
 
@@ -496,7 +499,8 @@ module Riser::Test
       assert_equal(0, resource_set.proxy_count)
       assert_equal(false, (resource_set.ref_object? 'alice'))
 
-      assert_raise(RuntimeError) { resource_set.call('alice') }
+      error = assert_raise(RuntimeError) { resource_set.call('alice') }
+      assert_equal('abort', error.message)
       assert_equal(%w[ at_create:alice ], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
       assert_equal(0, resource_set.ref_count('alice'))
@@ -529,14 +533,16 @@ module Riser::Test
       assert_equal(1, resource_set.proxy_count)
       assert_equal(true, (resource_set.ref_object? 'alice'))
 
-      assert_raise(RuntimeError) { alice.__unref__ }
+      error = assert_raise(RuntimeError) { alice.__unref__ }
+      assert_equal('abort', error.message)
       assert_equal(%w[ at_create:alice at_destroy:alice ], @recorder.get_memory_records)
       assert_equal(0, resource_set.key_count)
       assert_equal(0, resource_set.ref_count('alice'))
       assert_equal(0, resource_set.proxy_count)
       assert_equal(false, (resource_set.ref_object? 'alice'))
 
-      assert_raise(ArgumentError) { alice.__getobj__ }
+      error = assert_raise(ArgumentError) { alice.__getobj__ }
+      assert_match(/not delegated/, error.message)
     end
   end
 end

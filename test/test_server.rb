@@ -23,7 +23,8 @@ module Riser::Test
       @queue.close
       assert_equal(true, @queue.closed?)
       assert_nil(@queue.pop)
-      assert_raise(RuntimeError) { @queue.push(:foo, @dt) }
+      error = assert_raise(RuntimeError) { @queue.push(:foo, @dt) }
+      assert_match(/closed/, error.message)
     end
 
     def test_at_end_of_queue_with_data
