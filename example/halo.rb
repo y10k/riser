@@ -70,6 +70,7 @@ Riser::Daemon.start_daemon(daemonize: options[:daemonize],
                            server_privileged_group:         config['server_privileged_group']
                           ) {|server|
 
+  Riser.preload
   c = YAML.load_file(config_path)['server']
 
   logger = Logger.new(server_log)

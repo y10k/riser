@@ -21,6 +21,17 @@ module Riser
   autoload :TemporaryPath, 'riser/temppath'
   autoload :TimeoutSizedQueue, 'riser/server'
   autoload :WriteBufferStream, 'riser/stream'
+
+  def preload(namespace=Riser)
+    for name in namespace.constants
+      if (namespace.autoload? name) then
+        namespace.const_get(name)
+      end
+    end
+
+    nil
+  end
+  module_function :preload
 end
 
 # Local Variables:
