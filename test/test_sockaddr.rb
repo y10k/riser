@@ -10,7 +10,7 @@ module Riser::Test
          'Hash:Symbol'             => { type: :tcp, host: 'example', port: 80 },
          'Hash:Symbol_backlog_nil' => { type: :tcp, host: 'example', port: 80, backlog: nil },
          'Hash:String'             => { 'type' => 'tcp', 'host' => 'example', 'port' => 80 },
-         'Hash:String_backlog_nil' => { 'type' => 'tcp', 'host' => 'example', 'port' => 80 })
+         'Hash:String_backlog_nil' => { 'type' => 'tcp', 'host' => 'example', 'port' => 80, 'backlog' => nil })
     def test_parse_tcp_socket_address(config)
       addr = Riser::SocketAddress.parse(config)
       assert_instance_of(Riser::TCPSocketAddress, addr)
