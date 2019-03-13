@@ -53,7 +53,14 @@ module Riser
           return
         end
 
-        server_address = SocketAddress.parse(address_config)
+        begin
+          server_address = SocketAddress.parse(address_config)
+        rescue
+          @logger.error("failed to parse server address: #{address_config.inspect} [#{$!} (#{$!.class})]")
+          @logger.debug($!) if @logger.debug?
+          return
+        end
+
         unless (server_address) then
           @logger.error("failed to parse server address: #{address_config.inspect}")
         end

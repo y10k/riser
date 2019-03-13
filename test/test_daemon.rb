@@ -876,8 +876,10 @@ module Riser::Test
       assert_nil(@sysop.get_server_address(proc{ raise 'abort' }))
     end
 
-    def test_get_server_address_fail_parse_address
-      assert_nil(@sysop.get_server_address(proc{ nil }))
+    data('invalid_address' => Object.new,
+         'fail_to_parse'   => 'tcp://localhost:http')
+    def test_get_server_address_fail_parse_address(config)
+      assert_nil(@sysop.get_server_address(proc{ config }))
     end
 
     def test_get_server_socket
