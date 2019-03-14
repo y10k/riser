@@ -2,6 +2,7 @@
 
 require 'riser'
 require 'test/unit'
+require 'uri'
 
 module Riser::Test
   class SocketAddressTest < Test::Unit::TestCase
@@ -138,29 +139,62 @@ module Riser::Test
       assert_equal('wheel', addr.group)
     end
 
-    data('host_no_port'              => 'host',
-         'tcp_uri_no_host'           => 'tcp://:80',
-         'tcp_uri_no_port'           => 'tcp://example',
-         'unix_uri_no_path'          => 'unix://example',
-         'unknown_uri_scheme'        => 'http://example:80',
-         'hash_no_type'              => {},
-         'hash_tcp_no_host'          => { type: :tcp, port: 80 },
-         'hash_tcp_no_port'          => { type: :tcp, host: 'example' },
-         'hash_tcp_host_not_str'     => { type: :tcp, host: :example, port: 80 },
-         'hash_tcp_port_not_int'     => { type: :tcp, host: 'example', port: '80' },
-         'hash_tcp_backlog_not_int'  => { type: :tcp, host: 'example', port: 80, backlog: '5' },
-         'hash_unix_no_path'         => { type: :unix },
-         'hash_unix_path_empty'      => { type: :unix, path: '' },
-         'hash_unix_path_not_str'    => { type: :unix, path: :unix_socket },
-         'hash_unix_backlog_not_int' => { type: :unix, path: '/tmp/unix_socket', backlog: '5' },
-         'hash_unix_mode_not_int'    => { type: :unix, path: '/tmp/unix_socket', mode: '0600' },
-         'hash_unix_owner_empty'     => { type: :unix, path: '/tmp/unix_socket', owner: '' },
-         'hash_unix_owner_not_str'   => { type: :unix, path: '/tmp/unix_socket', owner: :root },
-         'hash_unix_group_empty'     => { type: :unix, path: '/tmp/unix_socket', group: '' },
-         'hash_unix_group_not_str'   => { type: :unix, path: '/tmp/unix_socket', group: :wheel },
-         'hash_unknown_type'         => { type: :http, host: 'example', port: 80 })
-    def test_fail_to_parse(config)
-      assert_nil(Riser::SocketAddress.parse(config))
+    data('tcp_bad_uri'               => [ 'tcp://"example"',
+                                          URI::InvalidURIError ],
+         'tcp_uri_no_host'           => [ 'tcp://:80',
+                                          ArgumentError, 'need for a tcp socket uri host.' ],
+         'tcp_uri_no_port'           => [ 'tcp://example',
+                                          ArgumentError, 'need for a tcp socket uri port.' ],
+         'unix_bad_uri'              => [ 'unix:"/tmp/unix_socket"',
+                                          URI::InvalidURIError ],
+         'unix_uri_no_path'          => [ 'unix:example',
+                                          ArgumentError, 'need for a unix socket uri path.' ],
+         'unix_uri_path_empty'       => [ 'unix:',
+                                          ArgumentError, 'empty unix socket uri path.' ],
+         'hash_tcp_no_host'          => [ { type: :tcp, port: 80 },
+                                          ArgumentError, 'need for a tcp socket host.' ],
+         'hash_tcp_host_not_str'     => [ { type: :tcp, host: :example, port: 80 },
+                                          TypeError, 'not a string tcp scoket host.' ],
+         'hash_tcp_host_empty'       => [ { type: :tcp, host: '', port: 80 },
+                                          ArgumentError, 'empty tcp socket host.' ],
+         'hash_tcp_no_port'          => [ { type: :tcp, host: 'example' },
+                                          ArgumentError, 'need for a tcp socket port.' ],
+         'hash_tcp_port_not_int'     => [ { type: :tcp, host: 'example', port: '80' },
+                                          TypeError, 'not a integer tcp socket port.' ],
+         'hash_tcp_backlog_not_int'  => [ { type: :tcp, host: 'example', port: 80, backlog: '5' },
+                                          TypeError, 'not a integer tcp socket backlog.' ],
+         'hash_unix_no_path'         => [ { type: :unix },
+                                          ArgumentError, 'need for a unix socket path.' ],
+         'hash_unix_path_not_str'    => [ { type: :unix, path: :unix_socket },
+                                          TypeError, 'not a string unix socket path.' ],
+         'hash_unix_path_empty'      => [ { type: :unix, path: '' },
+                                          ArgumentError, 'empty unix socket path.' ],
+         'hash_unix_backlog_not_int' => [ { type: :unix, path: '/tmp/unix_socket', backlog: '5' },
+                                          TypeError, 'not a integer unix socket backlog.' ],
+         'hash_unix_mode_not_int'    => [ { type: :unix, path: '/tmp/unix_socket', mode: '0600' },
+                                          TypeError, 'not a integer socket mode.' ],
+         'hash_unix_owner_not_str'   => [ { type: :unix, path: '/tmp/unix_socket', owner: :root },
+                                          TypeError, 'unix socket owner is neither an integer nor a string.' ],
+         'hash_unix_owner_empty'     => [ { type: :unix, path: '/tmp/unix_socket', owner: '' },
+                                          ArgumentError, 'empty unix socket owner.' ],
+         'hash_unix_group_not_str'   => [ { type: :unix, path: '/tmp/unix_socket', group: :wheel },
+                                          TypeError, 'unix socket group is neither an integer nor a string.' ],
+         'hash_unix_group_empty'     => [ { type: :unix, path: '/tmp/unix_socket', group: '' },
+                                          ArgumentError, 'empty unix socket group.' ],
+         'unknown_uri_scheme'        => [ 'http://example:80',
+                                          ArgumentError, 'invalid socket address.' ],
+         'host_no_port'              => [ 'host',
+                                          ArgumentError, 'invalid socket address.' ],
+         'hash_no_type'              => [ {},
+                                          ArgumentError, 'invalid socket address.' ],
+         'hash_unknown_type'         => [ { type: :http, host: 'example', port: 80 },
+                                          ArgumentError, 'invalid socket address.' ],
+         'invalid_address_object'    => [ Object.new,
+                                          ArgumentError, 'invalid socket address.' ])
+    def test_fail_to_parse(data)
+      config, expected_error, expected_message = data
+      error = assert_raise(expected_error) { assert_nil(Riser::SocketAddress.parse(config)) }
+      assert_equal(expected_message, error.message) if expected_message
     end
 
     tmp_tcp_addr = Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80)

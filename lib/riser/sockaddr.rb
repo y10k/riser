@@ -46,14 +46,14 @@ module Riser
         case (config)
         when /\A tcp:/x
           uri = URI(config)
-          if (uri.host && uri.port) then
-            return TCPSocketAddress.new(unsquare.call(uri.host), uri.port)
-          end
+          uri.host or raise ArgumentError, 'need for a tcp socket uri host.'
+          uri.port or raise ArgumentError, 'need for a tcp socket uri port.'
+          return TCPSocketAddress.new(unsquare.call(uri.host), uri.port)
         when /\A unix:/x
           uri = URI(config)
-          if (uri.path && ! uri.path.empty?) then
-            return UNIXSocketAddress.new(uri.path)
-          end
+          uri.path or raise ArgumentError, 'need for a unix socket uri path.'
+          uri.path.empty? and raise ArgumentError, 'empty unix socket uri path.'
+          return UNIXSocketAddress.new(uri.path)
         when %r"\A [A-Za-z]+:/"x
           # unknown URI scheme
         when /\A (\S+):(\d+) \z/x
@@ -65,34 +65,59 @@ module Riser
         if (type = config[:type] || config['type']) then
           case (type.to_s)
           when 'tcp'
-            host    = config[:host]    || config['host']
-            port    = config[:port]    || config['port']
-            backlog = config[:backlog] || config['backlog']
-            if ((host && (host.is_a? String) && ! host.empty?) &&
-                (port && (port.is_a? Integer)) &&
-                (backlog.nil? || (backlog.is_a? Integer)))
-            then
-              return TCPSocketAddress.new(unsquare.call(host), port, backlog)
+            host = config[:host] || config['host'] or raise ArgumentError, 'need for a tcp socket host.'
+            (host.is_a? String) or raise TypeError, 'not a string tcp scoket host.'
+            host.empty? and raise ArgumentError, 'empty tcp socket host.'
+
+            port = config[:port] || config['port'] or raise ArgumentError, 'need for a tcp socket port.'
+            (port.is_a? Integer) or raise TypeError, 'not a integer tcp socket port.'
+
+            if (backlog = config[:backlog] || config['backlog']) then
+              (backlog.is_a? Integer) or raise TypeError, 'not a integer tcp socket backlog.'
             end
+
+            return TCPSocketAddress.new(unsquare.call(host), port, backlog)
           when 'unix'
-            path    = config[:path]    || config['path']
-            backlog = config[:backlog] || config['backlog']
-            mode    = config[:mode]    || config['mode']
-            owner   = config[:owner]   || config['owner']
-            group   = config[:group]   || config['group']
-            if ((path && (path.is_a? String) && ! path.empty?) &&
-                (backlog.nil? || (backlog.is_a? Integer)) &&
-                (mode.nil? || (mode.is_a? Integer)) &&
-                (owner.nil? || (owner.is_a? Integer) || ((owner.is_a? String) && ! owner.empty?)) &&
-                (group.nil? || (group.is_a? Integer) || ((group.is_a? String) && ! group.empty?)))
-            then
-              return UNIXSocketAddress.new(path, backlog, mode, owner, group)
+            path = config[:path] || config['path'] or raise ArgumentError, 'need for a unix socket path.'
+            (path.is_a? String) or raise TypeError, 'not a string unix socket path.'
+            path.empty? and raise ArgumentError, 'empty unix socket path.'
+
+            if (backlog = config[:backlog] || config['backlog']) then
+              (backlog.is_a? Integer) or raise TypeError, 'not a integer unix socket backlog.'
             end
+
+            if (mode = config[:mode] || config['mode']) then
+              (mode.is_a? Integer) or raise TypeError, 'not a integer socket mode.'
+            end
+
+            if (owner = config[:owner] || config['owner']) then
+              unless ((owner.is_a? Integer) || (owner.is_a? String)) then
+                raise TypeError, 'unix socket owner is neither an integer nor a string.'
+              end
+              if (owner.is_a? String) then
+                if (owner.empty?) then
+                  raise ArgumentError, 'empty unix socket owner.'
+                end
+              end
+            end
+
+            if (group = config[:group] || config['group']) then
+              unless ((group.is_a? Integer) || (group.is_a? String)) then
+                raise TypeError, 'unix socket group is neither an integer nor a string.'
+              end
+              if (group.is_a? String) then
+                if (group.empty?) then
+                  raise ArgumentError, 'empty unix socket group.'
+                end
+              end
+            end
+
+            return UNIXSocketAddress.new(path, backlog, mode, owner, group)
           end
         end
       end
 
-      return
+      raise ArgumentError, 'invalid socket address.'
     end
   end
 

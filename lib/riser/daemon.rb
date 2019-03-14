@@ -61,9 +61,6 @@ module Riser
           return
         end
 
-        unless (server_address) then
-          @logger.error("failed to parse server address: #{address_config.inspect}")
-        end
         server_address
       end
 
