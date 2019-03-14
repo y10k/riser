@@ -917,6 +917,7 @@ module Riser::Test
         assert_equal(unix_path, @sysop.get_socket_address(s))
       ensure
         s.close
+        FileUtils.rm_f(unix_path)
       end
     end
 
