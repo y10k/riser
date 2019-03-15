@@ -70,7 +70,15 @@ module Riser
             host.empty? and raise ArgumentError, 'empty tcp socket host.'
 
             port = config[:port] || config['port'] or raise ArgumentError, 'need for a tcp socket port.'
-            (port.is_a? Integer) or raise TypeError, 'not a integer tcp socket port.'
+            case (port)
+            when Integer
+              # OK
+            when String
+              service_name = port
+              port = Socket.getservbyname(service_name, 'tcp')
+            else
+              raise TypeError, 'port number is neither an integer nor a service name.'
+            end
 
             if (backlog = config[:backlog] || config['backlog']) then
               (backlog.is_a? Integer) or raise TypeError, 'not a integer tcp socket backlog.'

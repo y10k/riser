@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'riser'
+require 'socket'
 require 'test/unit'
 require 'uri'
 
@@ -9,8 +10,10 @@ module Riser::Test
     data('host:port'               => 'example:80',
          'tcp://host:port'         => 'tcp://example:80',
          'Hash:Symbol'             => { type: :tcp, host: 'example', port: 80 },
+         'Hash:Symbol_svc_name'    => { type: :tcp, host: 'example', port: 'http' },
          'Hash:Symbol_backlog_nil' => { type: :tcp, host: 'example', port: 80, backlog: nil },
          'Hash:String'             => { 'type' => 'tcp', 'host' => 'example', 'port' => 80 },
+         'Hash:String_svc_name'    => { 'type' => 'tcp', 'host' => 'example', 'port' => 'http' },
          'Hash:String_backlog_nil' => { 'type' => 'tcp', 'host' => 'example', 'port' => 80, 'backlog' => nil })
     def test_parse_tcp_socket_address(config)
       addr = Riser::SocketAddress.parse(config)
@@ -28,9 +31,11 @@ module Riser::Test
          'tcp://host:port'         => 'tcp://[::1]:80',
          'Hash:Symbol'             => { type: :tcp, host: '::1', port: 80 },
          'Hash:Symbol_SquareHost'  => { type: :tcp, host: '[::1]', port: 80 },
+         'Hash:Symbol_svc_name'    => { type: :tcp, host: '::1', port: 'http' },
          'Hash:Symbol_backlog_nil' => { type: :tcp, host: '::1', port: 80, backlog: nil },
          'Hash:String'             => { 'type' => 'tcp', 'host' => '::1', 'port' => 80 },
          'Hash:String_SquareHost'  => { 'type' => 'tcp', 'host' => '[::1]', 'port' => 80 },
+         'Hash:String_svc_name'    => { 'type' => 'tcp', 'host' => '::1', 'port' => 'http' },
          'Hash:String_backlog_nil' => { 'type' => 'tcp', 'host' => '[::1]', 'port' => 80, 'backlog' => nil })
     def test_parse_tcp_socket_address_ipv6(config)
       addr = Riser::SocketAddress.parse(config)
@@ -159,8 +164,10 @@ module Riser::Test
                                           ArgumentError, 'empty tcp socket host.' ],
          'hash_tcp_no_port'          => [ { type: :tcp, host: 'example' },
                                           ArgumentError, 'need for a tcp socket port.' ],
-         'hash_tcp_port_not_int'     => [ { type: :tcp, host: 'example', port: '80' },
-                                          TypeError, 'not a integer tcp socket port.' ],
+         'hash_tcp_port_not_int'     => [ { type: :tcp, host: 'example', port: :http },
+                                          TypeError, 'port number is neither an integer nor a service name.' ],
+         'hash_tcp_port_bad_svc'     => [ { type: :tcp, host: 'example', port: 'nothing' },
+                                          SocketError ],
          'hash_tcp_backlog_not_int'  => [ { type: :tcp, host: 'example', port: 80, backlog: '5' },
                                           TypeError, 'not a integer tcp socket backlog.' ],
          'hash_unix_no_path'         => [ { type: :unix },
