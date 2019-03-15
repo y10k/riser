@@ -74,7 +74,7 @@ module Riser
         end
       end
 
-      def get_socket_address(server_socket)
+      def get_sockaddr(server_socket)
         begin
           server_socket.local_address.inspect_sockaddr
         rescue
@@ -323,7 +323,7 @@ module Riser
 
     def server_socket_close(server_socket, server_address)
       # get local_address before close(2)
-      server_socket_address = @sysop.get_socket_address(server_socket) || server_address
+      server_socket_address = @sysop.get_sockaddr(server_socket) || server_address
 
       if (@sysop.close(server_socket)) then
         @logger.info("close server socket: #{server_socket_address}")
@@ -429,7 +429,7 @@ module Riser
         @logger.fatal('failed to start daemon.')
         return 1
       end
-      @logger.info("open server socket: #{@sysop.get_socket_address(server_socket) || server_address}")
+      @logger.info("open server socket: #{@sysop.get_sockaddr(server_socket) || server_address}")
 
       begin
         server_socket_option(server_socket, server_address)
@@ -470,16 +470,16 @@ module Riser
                   end
                 else
                   if (next_server_socket = @sysop.get_server_socket(next_server_address)) then
-                    @logger.info("open server socket: #{@sysop.get_socket_address(next_server_socket) || next_server_address}")
+                    @logger.info("open server socket: #{@sysop.get_sockaddr(next_server_socket) || next_server_address}")
                     server_socket_close(server_socket, server_address)
                     server_socket = next_server_socket
                     server_address = next_server_address
                   else
-                    @logger.warn("server socket continue: #{@sysop.get_socket_address(server_socket) || server_address}")
+                    @logger.warn("server socket continue: #{@sysop.get_sockaddr(server_socket) || server_address}")
                   end
                 end
               else
-                @logger.warn("server socket continue: #{@sysop.get_socket_address(server_socket) || server_address}")
+                @logger.warn("server socket continue: #{@sysop.get_sockaddr(server_socket) || server_address}")
               end
               server_socket_option(server_socket, server_address)
 

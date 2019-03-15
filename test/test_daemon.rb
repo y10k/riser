@@ -910,23 +910,23 @@ module Riser::Test
       end
     end
 
-    def test_get_socket_address
+    def test_get_sockaddr
       unix_path = Riser::TemporaryPath.make_unix_socket_path
       s = UNIXServer.new(unix_path)
       begin
-        assert_equal(unix_path, @sysop.get_socket_address(s))
+        assert_equal(unix_path, @sysop.get_sockaddr(s))
       ensure
         s.close
         FileUtils.rm_f(unix_path)
       end
     end
 
-    def test_get_socket_address_fail_local_address
+    def test_get_sockaddr_fail_local_address
       o = Object.new
       def o.local_address
         raise 'abort'
       end
-      assert_nil(@sysop.get_socket_address(o))
+      assert_nil(@sysop.get_sockaddr(o))
     end
 
     def test_listen
