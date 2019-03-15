@@ -308,7 +308,7 @@ Riser::Daemon.start_daemon(daemonize: false,
 
   ssl_context = OpenSSL::SSL::SSLContext.new
   ssl_context.cert = OpenSSL::X509::Certificate.new(File.read(cert_path))
-  ssl_context.key = OpenSSL::PKey::RSA.new(File.read(pkey_path))
+  ssl_context.key = OpenSSL::PKey.read(File.read(pkey_path))
 
   server.dispatch{|socket|
     ssl_socket = OpenSSL::SSL::SSLSocket.new(socket, ssl_context)
