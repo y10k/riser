@@ -291,7 +291,7 @@ and
 ### TLS Server
 
 With OpenSSL, the riser is able to provide a TLS server.  To provide a
-TLS server you need a certificate and private key.  An example of a
+TLS server you need a certificate and a private key.  An example of a
 simple TLS server is as follows.
 
 ```ruby
