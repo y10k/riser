@@ -99,24 +99,24 @@ module Riser
             end
 
             if (owner = config[:owner] || config['owner']) then
-              unless ((owner.is_a? Integer) || (owner.is_a? String)) then
+              case (owner)
+              when Integer
+                # OK
+              when String
+                owner.empty? and raise ArgumentError, 'empty unix socket owner.'
+              else
                 raise TypeError, 'unix socket owner is neither an integer nor a string.'
-              end
-              if (owner.is_a? String) then
-                if (owner.empty?) then
-                  raise ArgumentError, 'empty unix socket owner.'
-                end
               end
             end
 
             if (group = config[:group] || config['group']) then
-              unless ((group.is_a? Integer) || (group.is_a? String)) then
+              case (group)
+              when Integer
+                # OK
+              when String
+                group.empty? and raise ArgumentError, 'empty unix socket group.'
+              else
                 raise TypeError, 'unix socket group is neither an integer nor a string.'
-              end
-              if (group.is_a? String) then
-                if (group.empty?) then
-                  raise ArgumentError, 'empty unix socket group.'
-                end
               end
             end
 
