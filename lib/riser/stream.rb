@@ -81,29 +81,29 @@ module Riser
 
     def gets
       line = super
-      @logger.info("r #{line.inspect}")
+      @logger.info("r #{line.inspect}") if @logger.info?
       line
     end
 
     def read(size)
       data = super
-      @logger.info("r #{data.inspect}")
+      @logger.info("r #{data.inspect}") if @logger.info?
       data
     end
 
     def readpartial(maxlen, outbuf=nil)
       data = super
-      @logger.info("r #{data.inspect}")
+      @logger.info("r #{data.inspect}") if @logger.info?
       data
     end
 
     def write(message)
-      @logger.info("w #{message.inspect}")
+      @logger.info("w #{message.inspect}") if @logger.info?
       super
     end
 
     def close
-      @logger.info('close')
+      @logger.info('close') if @logger.info?
       super
     end
   end
