@@ -34,158 +34,158 @@ module Riser
     end
   end
 
-  class RootProcess
-    class SystemOperation
-      def initialize(logger, module_FileUtils: FileUtils, module_Process: Process, class_IO: IO, class_File: File)
-        @logger = logger
-        @FileUtils = module_FileUtils
-        @Process = module_Process
-        @IO = class_IO
-        @File = class_File
+  class SystemOperation
+    def initialize(logger, module_FileUtils: FileUtils, module_Process: Process, class_IO: IO, class_File: File)
+      @logger = logger
+      @FileUtils = module_FileUtils
+      @Process = module_Process
+      @IO = class_IO
+      @File = class_File
+    end
+
+    def get_server_address(sockaddr_get)
+      begin
+        address_config = sockaddr_get.call
+      rescue
+        @logger.error("failed to get server address [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        return
       end
 
-      def get_server_address(sockaddr_get)
-        begin
-          address_config = sockaddr_get.call
-        rescue
-          @logger.error("failed to get server address [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          return
-        end
-
-        begin
-          server_address = SocketAddress.parse(address_config)
-        rescue
-          @logger.error("failed to parse server address: #{address_config.inspect} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          return
-        end
-
-        server_address
+      begin
+        server_address = SocketAddress.parse(address_config)
+      rescue
+        @logger.error("failed to parse server address: #{address_config.inspect} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        return
       end
 
-      def get_server_socket(server_address)
-        begin
-          server_address.open_server
-        rescue
-          @logger.error("failed to open server socket: #{server_address} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
+      server_address
+    end
 
-      def get_sockaddr(server_socket)
-        begin
-          server_socket.local_address.inspect_sockaddr
-        rescue
-          @logger.error("failed to get socket address: #{server_socket} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def listen(server_socket, backlog)
-        begin
-          server_socket.listen(backlog)
-        rescue
-          @logger.error("failed to listen(2) server socket with backlog: #{backlog} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def chmod(mode, path)
-        begin
-          @FileUtils.chmod(mode, path)
-        rescue
-          @logger.error("failed to chmod(2): #{'%04o' % mode} #{path} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def chown(owner, group, path)
-        begin
-          @FileUtils.chown(owner, group, path)
-        rescue
-          @logger.error("failed to chown(2): <#{owner}> <#{group}> <#{path}> [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def send_signal(pid, signal)
-        begin
-          @Process.kill(signal, pid)
-        rescue
-          @logger.error("failed to send signal (#{signal}) to process (pid: #{pid}) [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def wait(pid, flags=0)
-        begin
-          @Process.wait(pid, flags)
-        rescue
-          @logger.error("failed to wait(2) for process (pid: #{pid}) [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def pipe
-        begin
-          @IO.pipe
-        rescue
-          @logger.error("failed to pipe(2) [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def fork
-        begin
-          @Process.fork{ yield }
-        rescue
-          @logger.error("failed to fork(2) [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def gets(io)
-        begin
-          io.gets
-        rescue
-          @logger.error("failed to get line from #{io.inspect} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def close(io)
-        begin
-          io.close
-          io
-        rescue
-          @logger.error("failed to close(2) #{io.inspect} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
-      end
-
-      def unlink(path)
-        begin
-          File.unlink(path)
-        rescue
-          @logger.error("failed to unlink(2): #{path} [#{$!} (#{$!.class})]")
-          @logger.debug($!) if @logger.debug?
-          nil
-        end
+    def get_server_socket(server_address)
+      begin
+        server_address.open_server
+      rescue
+        @logger.error("failed to open server socket: #{server_address} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
       end
     end
 
+    def get_sockaddr(server_socket)
+      begin
+        server_socket.local_address.inspect_sockaddr
+      rescue
+        @logger.error("failed to get socket address: #{server_socket} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def listen(server_socket, backlog)
+      begin
+        server_socket.listen(backlog)
+      rescue
+        @logger.error("failed to listen(2) server socket with backlog: #{backlog} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def chmod(mode, path)
+      begin
+        @FileUtils.chmod(mode, path)
+      rescue
+        @logger.error("failed to chmod(2): #{'%04o' % mode} #{path} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def chown(owner, group, path)
+      begin
+        @FileUtils.chown(owner, group, path)
+      rescue
+        @logger.error("failed to chown(2): <#{owner}> <#{group}> <#{path}> [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def send_signal(pid, signal)
+      begin
+        @Process.kill(signal, pid)
+      rescue
+        @logger.error("failed to send signal (#{signal}) to process (pid: #{pid}) [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def wait(pid, flags=0)
+      begin
+        @Process.wait(pid, flags)
+      rescue
+        @logger.error("failed to wait(2) for process (pid: #{pid}) [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def pipe
+      begin
+        @IO.pipe
+      rescue
+        @logger.error("failed to pipe(2) [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def fork
+      begin
+        @Process.fork{ yield }
+      rescue
+        @logger.error("failed to fork(2) [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def gets(io)
+      begin
+        io.gets
+      rescue
+        @logger.error("failed to get line from #{io.inspect} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def close(io)
+      begin
+        io.close
+        io
+      rescue
+        @logger.error("failed to close(2) #{io.inspect} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+
+    def unlink(path)
+      begin
+        File.unlink(path)
+      rescue
+        @logger.error("failed to unlink(2): #{path} [#{$!} (#{$!.class})]")
+        @logger.debug($!) if @logger.debug?
+        nil
+      end
+    end
+  end
+
+  class RootProcess
     include ServerSignal
 
     def initialize(logger, sockaddr_get, server_polling_interval_seconds, server_restart_overlap_seconds=0, euid=nil, egid=nil, &block) # :yields: socket_server

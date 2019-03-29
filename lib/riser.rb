@@ -18,6 +18,7 @@ module Riser
   autoload :SocketServer, 'riser/server'
   autoload :StatusFile, 'riser/daemon'
   autoload :Stream, 'riser/stream'
+  autoload :SystemOperation, 'riser/daemon'
   autoload :TemporaryPath, 'riser/temppath'
   autoload :TimeoutSizedQueue, 'riser/server'
   autoload :WriteBufferStream, 'riser/stream'

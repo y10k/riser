@@ -68,6 +68,258 @@ module Riser::Test
     end
   end
 
+  class SystemOperationTest < Test::Unit::TestCase
+    def setup
+      @logger = Logger.new(STDOUT)
+      def @logger.close         # not close STDOUT
+      end
+      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::UNKNOWN
+      @sysop = Riser::SystemOperation.new(@logger)
+    end
+
+    def test_get_server_address
+      assert_equal(Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80),
+                   @sysop.get_server_address(proc{ 'example:80' }))
+    end
+
+    def test_get_server_address_fail_get_address
+      assert_nil(@sysop.get_server_address(proc{ raise 'abort' }))
+    end
+
+    data('invalid_address' => Object.new,
+         'fail_to_parse'   => 'tcp://localhost:http')
+    def test_get_server_address_fail_parse_address(config)
+      assert_nil(@sysop.get_server_address(proc{ config }))
+    end
+
+    def test_get_server_socket
+      unix_addr = Riser::SocketAddress.parse(type: :unix, path: Riser::TemporaryPath.make_unix_socket_path)
+      begin
+        s = @sysop.get_server_socket(unix_addr)
+        begin
+          assert_instance_of(UNIXServer, s)
+        ensure
+          s.close
+        end
+      ensure
+        FileUtils.rm_f(unix_addr.path)
+      end
+    end
+
+    def test_get_server_socket_fail_socket_open
+      unix_addr = Riser::SocketAddress.parse(type: :unix, path: Riser::TemporaryPath.make_unix_socket_path)
+      begin
+        s = unix_addr.open_server
+        begin
+          assert_nil(@sysop.get_server_socket(unix_addr))
+        ensure
+          s.close
+        end
+      ensure
+        FileUtils.rm_f(unix_addr.path)
+      end
+    end
+
+    def test_get_sockaddr
+      unix_path = Riser::TemporaryPath.make_unix_socket_path
+      s = UNIXServer.new(unix_path)
+      begin
+        assert_equal(unix_path, @sysop.get_sockaddr(s))
+      ensure
+        s.close
+        FileUtils.rm_f(unix_path)
+      end
+    end
+
+    def test_get_sockaddr_fail_local_address
+      o = Object.new
+      def o.local_address
+        raise 'abort'
+      end
+      assert_nil(@sysop.get_sockaddr(o))
+    end
+
+    def test_listen
+      s = TCPServer.new(0)
+      begin
+        assert_equal(0, @sysop.listen(s, 10))
+      ensure
+        s.close
+      end
+    end
+
+    def test_listen_fail
+      o = Object.new
+      def o.listen(backlog)
+        raise 'abort'
+      end
+      assert_nil(@sysop.listen(o, 10))
+    end
+
+    def test_chmod
+      target = 'chmod_test.tmp'
+      FileUtils.touch(target)
+      begin
+        assert_equal([ target ], @sysop.chmod(0600, target))
+      ensure
+        FileUtils.rm_f(target)
+      end
+    end
+
+    def test_chmod_fail
+      target = 'chmod_test.tmp'
+      assert(! (File.exist? target))
+      assert_nil(@sysop.chmod(0600, target))
+    end
+
+    def test_chown
+      target = 'chown_test.tmp'
+      FileUtils.touch(target)
+      begin
+        assert_equal([ target ], @sysop.chown(Process.uid, Process.gid, target))
+        assert_equal([ target ], @sysop.chown(Process.uid, -1,          target))
+        assert_equal([ target ], @sysop.chown(-1,          Process.gid, target))
+
+        pw = Etc.getpwuid(Process.uid)
+        gr = Etc.getgrgid(Process.gid)
+        assert_equal([ target ], @sysop.chown(pw.name, gr.name, target))
+        assert_equal([ target ], @sysop.chown(pw.name, nil,     target))
+        assert_equal([ target ], @sysop.chown(nil,     gr.name, target))
+      ensure
+        FileUtils.rm_f(target)
+      end
+    end
+
+    def test_chown_fail
+      target = 'chown_test.tmp'
+      assert(! (File.exist? target))
+      assert_nil(@sysop.chown(Process.uid, Process.gid, target))
+      assert_nil(@sysop.chown(Process.uid, -1,          target))
+      assert_nil(@sysop.chown(-1,          Process.gid, target))
+
+      pw = Etc.getpwuid(Process.uid)
+      gr = Etc.getgrgid(Process.gid)
+      assert_nil(@sysop.chown(pw.name, gr.name, target))
+      assert_nil(@sysop.chown(pw.name, nil,     target))
+      assert_nil(@sysop.chown(nil,     gr.name, target))
+    end
+
+    def test_send_signal
+      assert_equal(1, @sysop.send_signal($$, 0))
+    end
+
+    def test_send_signal_fail
+      m_process = Object.new
+      def m_process.kill(signal, pid)
+        raise 'abort'
+      end
+
+      @sysop = Riser::SystemOperation.new(@logger, module_Process: m_process)
+      assert_nil(@sysop.send_signal($$, 0))
+    end
+
+    def test_wait
+      pid = fork{}
+      assert_equal(pid, @sysop.wait(pid))
+    end
+
+    def test_wait_fail
+      m_process = Object.new
+      def m_process.wait(pid, flags)
+        raise 'abort'
+      end
+
+      @sysop = Riser::SystemOperation.new(@logger, module_Process: m_process)
+      assert_nil(@sysop.wait(1))
+    end
+
+    def test_pipe
+      read_io, write_io = @sysop.pipe
+      begin
+        write_io << "HALO\n"
+        assert_equal("HALO\n", read_io.gets)
+      ensure
+        read_io.close
+        write_io.close
+      end
+    end
+
+    def test_pipe_fail
+      c_io = Object.new
+      def c_io.pipe
+        raise 'abort'
+      end
+
+      @sysop = Riser::SystemOperation.new(@logger, class_IO: c_io)
+      assert_nil(@sysop.pipe)
+    end
+
+    def test_fork
+      pid = @sysop.fork{}
+      Process.wait(pid)
+    end
+
+    def test_fork_fail
+      m_process = Object.new
+      def m_process.fork
+        raise 'abort'
+      end
+
+      @sysop = Riser::SystemOperation.new(@logger, module_Process: m_process)
+      assert_nil(@sysop.fork{})
+    end
+
+    def test_gets
+      read_io, write_io = IO.pipe
+      begin
+        write_io << "HALO\n"
+        assert_equal("HALO\n", @sysop.gets(read_io))
+      ensure
+        read_io.close
+        write_io.close
+      end
+    end
+
+    def test_gets_fail
+      o = Object.new
+      def o.gets
+        raise 'abort'
+      end
+
+      assert_nil(@sysop.gets(o))
+    end
+
+    def test_close
+      f = File.open('/dev/null')
+      assert_equal(f, @sysop.close(f))
+    end
+
+    def test_close_fail
+      o = Object.new
+      def o.close
+        raise 'abort'
+      end
+
+      assert_nil(@sysop.close(o))
+    end
+
+    def test_unlink
+      f = 'unlink_test.tmp'
+      FileUtils.touch(f)
+      begin
+        assert_equal(1, @sysop.unlink(f))
+      ensure
+        FileUtils.rm_f(f)
+      end
+    end
+
+    def test_unlink_fail
+      f = 'unlink_test.tmp'
+      assert(! (File.exist? f))
+      assert_nil(@sysop.unlink(f))
+    end
+  end
+
   class RootProcessTest < Test::Unit::TestCase
     include Riser::ServerSignal
     include Timeout
@@ -855,258 +1107,6 @@ module Riser::Test
       ensure
         FileUtils.rm_f(server_fail)
       end
-    end
-  end
-
-  class RootProcessSystemOperationTest < Test::Unit::TestCase
-    def setup
-      @logger = Logger.new(STDOUT)
-      def @logger.close         # not close STDOUT
-      end
-      @logger.level = ($DEBUG) ? Logger::DEBUG : Logger::UNKNOWN
-      @sysop = Riser::RootProcess::SystemOperation.new(@logger)
-    end
-
-    def test_get_server_address
-      assert_equal(Riser::SocketAddress.parse(type: :tcp, host: 'example', port: 80),
-                   @sysop.get_server_address(proc{ 'example:80' }))
-    end
-
-    def test_get_server_address_fail_get_address
-      assert_nil(@sysop.get_server_address(proc{ raise 'abort' }))
-    end
-
-    data('invalid_address' => Object.new,
-         'fail_to_parse'   => 'tcp://localhost:http')
-    def test_get_server_address_fail_parse_address(config)
-      assert_nil(@sysop.get_server_address(proc{ config }))
-    end
-
-    def test_get_server_socket
-      unix_addr = Riser::SocketAddress.parse(type: :unix, path: Riser::TemporaryPath.make_unix_socket_path)
-      begin
-        s = @sysop.get_server_socket(unix_addr)
-        begin
-          assert_instance_of(UNIXServer, s)
-        ensure
-          s.close
-        end
-      ensure
-        FileUtils.rm_f(unix_addr.path)
-      end
-    end
-
-    def test_get_server_socket_fail_socket_open
-      unix_addr = Riser::SocketAddress.parse(type: :unix, path: Riser::TemporaryPath.make_unix_socket_path)
-      begin
-        s = unix_addr.open_server
-        begin
-          assert_nil(@sysop.get_server_socket(unix_addr))
-        ensure
-          s.close
-        end
-      ensure
-        FileUtils.rm_f(unix_addr.path)
-      end
-    end
-
-    def test_get_sockaddr
-      unix_path = Riser::TemporaryPath.make_unix_socket_path
-      s = UNIXServer.new(unix_path)
-      begin
-        assert_equal(unix_path, @sysop.get_sockaddr(s))
-      ensure
-        s.close
-        FileUtils.rm_f(unix_path)
-      end
-    end
-
-    def test_get_sockaddr_fail_local_address
-      o = Object.new
-      def o.local_address
-        raise 'abort'
-      end
-      assert_nil(@sysop.get_sockaddr(o))
-    end
-
-    def test_listen
-      s = TCPServer.new(0)
-      begin
-        assert_equal(0, @sysop.listen(s, 10))
-      ensure
-        s.close
-      end
-    end
-
-    def test_listen_fail
-      o = Object.new
-      def o.listen(backlog)
-        raise 'abort'
-      end
-      assert_nil(@sysop.listen(o, 10))
-    end
-
-    def test_chmod
-      target = 'chmod_test.tmp'
-      FileUtils.touch(target)
-      begin
-        assert_equal([ target ], @sysop.chmod(0600, target))
-      ensure
-        FileUtils.rm_f(target)
-      end
-    end
-
-    def test_chmod_fail
-      target = 'chmod_test.tmp'
-      assert(! (File.exist? target))
-      assert_nil(@sysop.chmod(0600, target))
-    end
-
-    def test_chown
-      target = 'chown_test.tmp'
-      FileUtils.touch(target)
-      begin
-        assert_equal([ target ], @sysop.chown(Process.uid, Process.gid, target))
-        assert_equal([ target ], @sysop.chown(Process.uid, -1,          target))
-        assert_equal([ target ], @sysop.chown(-1,          Process.gid, target))
-
-        pw = Etc.getpwuid(Process.uid)
-        gr = Etc.getgrgid(Process.gid)
-        assert_equal([ target ], @sysop.chown(pw.name, gr.name, target))
-        assert_equal([ target ], @sysop.chown(pw.name, nil,     target))
-        assert_equal([ target ], @sysop.chown(nil,     gr.name, target))
-      ensure
-        FileUtils.rm_f(target)
-      end
-    end
-
-    def test_chown_fail
-      target = 'chown_test.tmp'
-      assert(! (File.exist? target))
-      assert_nil(@sysop.chown(Process.uid, Process.gid, target))
-      assert_nil(@sysop.chown(Process.uid, -1,          target))
-      assert_nil(@sysop.chown(-1,          Process.gid, target))
-
-      pw = Etc.getpwuid(Process.uid)
-      gr = Etc.getgrgid(Process.gid)
-      assert_nil(@sysop.chown(pw.name, gr.name, target))
-      assert_nil(@sysop.chown(pw.name, nil,     target))
-      assert_nil(@sysop.chown(nil,     gr.name, target))
-    end
-
-    def test_send_signal
-      assert_equal(1, @sysop.send_signal($$, 0))
-    end
-
-    def test_send_signal_fail
-      m_process = Object.new
-      def m_process.kill(signal, pid)
-        raise 'abort'
-      end
-
-      @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
-      assert_nil(@sysop.send_signal($$, 0))
-    end
-
-    def test_wait
-      pid = fork{}
-      assert_equal(pid, @sysop.wait(pid))
-    end
-
-    def test_wait_fail
-      m_process = Object.new
-      def m_process.wait(pid, flags)
-        raise 'abort'
-      end
-
-      @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
-      assert_nil(@sysop.wait(1))
-    end
-
-    def test_pipe
-      read_io, write_io = @sysop.pipe
-      begin
-        write_io << "HALO\n"
-        assert_equal("HALO\n", read_io.gets)
-      ensure
-        read_io.close
-        write_io.close
-      end
-    end
-
-    def test_pipe_fail
-      c_io = Object.new
-      def c_io.pipe
-        raise 'abort'
-      end
-
-      @sysop = Riser::RootProcess::SystemOperation.new(@logger, class_IO: c_io)
-      assert_nil(@sysop.pipe)
-    end
-
-    def test_fork
-      pid = @sysop.fork{}
-      Process.wait(pid)
-    end
-
-    def test_fork_fail
-      m_process = Object.new
-      def m_process.fork
-        raise 'abort'
-      end
-
-      @sysop = Riser::RootProcess::SystemOperation.new(@logger, module_Process: m_process)
-      assert_nil(@sysop.fork{})
-    end
-
-    def test_gets
-      read_io, write_io = IO.pipe
-      begin
-        write_io << "HALO\n"
-        assert_equal("HALO\n", @sysop.gets(read_io))
-      ensure
-        read_io.close
-        write_io.close
-      end
-    end
-
-    def test_gets_fail
-      o = Object.new
-      def o.gets
-        raise 'abort'
-      end
-
-      assert_nil(@sysop.gets(o))
-    end
-
-    def test_close
-      f = File.open('/dev/null')
-      assert_equal(f, @sysop.close(f))
-    end
-
-    def test_close_fail
-      o = Object.new
-      def o.close
-        raise 'abort'
-      end
-
-      assert_nil(@sysop.close(o))
-    end
-
-    def test_unlink
-      f = 'unlink_test.tmp'
-      FileUtils.touch(f)
-      begin
-        assert_equal(1, @sysop.unlink(f))
-      ensure
-        FileUtils.rm_f(f)
-      end
-    end
-
-    def test_unlink_fail
-      f = 'unlink_test.tmp'
-      assert(! (File.exist? f))
-      assert_nil(@sysop.unlink(f))
     end
   end
 
