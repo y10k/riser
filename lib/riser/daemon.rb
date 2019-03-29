@@ -25,6 +25,16 @@ module Riser
       @file.flock(File::LOCK_EX | File::LOCK_NB)
     end
 
+    def self.locked?(status_file_path)
+      begin
+        File.open(status_file_path, File::WRONLY) {|lock_file|
+          ! lock_file.flock(File::LOCK_EX | File::LOCK_NB)
+        }
+      rescue Errno::ENOENT
+        false
+      end
+    end
+
     def write(text)
       @file.truncate(0)
       @file.seek(0)

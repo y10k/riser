@@ -44,17 +44,25 @@ module Riser::Test
           until (File.exist? lock_start)
             # nothing to do.
           end
+          assert_equal(true, (Riser::StatusFile.locked? @filename))
           assert(! @st.lock)
         ensure
           FileUtils.touch(lock_end)
           Process.wait(pid)
         end
 
+        assert_equal(false, (Riser::StatusFile.locked? @filename))
         assert(@st.lock)
       ensure
         FileUtils.rm_f(lock_start)
         FileUtils.rm_f(lock_end)
       end
+    end
+
+    def test_locked_no_file
+      FileUtils.rm_f(@filename)
+      assert_equal(false, (File.exist? @filename))
+      assert_equal(false, (Riser::StatusFile.locked? @filename))
     end
 
     def test_write
