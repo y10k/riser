@@ -647,6 +647,12 @@ module Riser
       signal_restart_forced:     SIGNAL_RESTART_FORCED
     }.freeze
 
+    # set the `status_file' parameter of the `start_daemon' method to
+    # call this method.
+    def self.running?(status_file_path)
+      StatusFile.locked? status_file_path
+    end
+
     # should be executed on the main thread sharing the stack with
     # signal(2) handlers
     def start_daemon(config, &block) # :yields: socket_server
