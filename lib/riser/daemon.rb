@@ -710,7 +710,7 @@ module Riser
       Signal.trap(:CHLD) { root_process.signal_server_down }
 
       if (c[:daemonize]) then
-        Process.daemon(c[:daemon_nochdir], true)
+        Process.daemon(c[:daemon_nochdir])
       end
 
       # update after process ID changes in daemonization.
