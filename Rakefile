@@ -17,7 +17,7 @@ Rake::RDocTask.new do |rd|
   rd.rdoc_files.include('lib/**/*.rb')
 end
 
-desc 'Build README.html from markdown source.'
+desc 'Build README.html from markdown source'
 task :readme => %w[ README.html ]
 
 file 'README.html' => [ 'README.md' ] do
