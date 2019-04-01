@@ -600,31 +600,31 @@ module Riser
   end
 
   module Daemon
-    include ServerSignal
-
-    def get_id(name, id_mod)    # :nodoc:
-      if (name) then
-        case (name)
-        when Integer
-          name
-        when /\A \d+ \z/x
-          name.to_i
-        else
-          id_mod.from_name(name)
+    class << self
+      def get_id(name, id_mod)
+        if (name) then
+          case (name)
+          when Integer
+            name
+          when /\A \d+ \z/x
+            name.to_i
+          else
+            id_mod.from_name(name)
+          end
         end
       end
-    end
-    module_function :get_id
+      private :get_id
 
-    def get_uid(user)
-      get_id(user, Process::UID)
-    end
-    module_function :get_uid
+      def get_uid(user)
+        get_id(user, Process::UID)
+      end
 
-    def get_gid(group)
-      get_id(group, Process::GID)
+      def get_gid(group)
+        get_id(group, Process::GID)
+      end
     end
-    module_function :get_gid
+
+    include ServerSignal
 
     DEFAULT = {
       daemonize: true,
@@ -691,8 +691,8 @@ module Riser
         sockaddr_get = proc{ c[:listen_address] }
       end
 
-      euid = get_uid(c[:server_privileged_user])
-      egid = get_gid(c[:server_privileged_group])
+      euid = Daemon.get_uid(c[:server_privileged_user])
+      egid = Daemon.get_gid(c[:server_privileged_group])
 
       root_process = RootProcess.new(logger, sockaddr_get, c[:server_polling_interval_seconds], c[:server_restart_overlap_seconds], euid, egid, &block)
       [ [ :signal_stop_graceful,      proc{ root_process.signal_stop_graceful }          ],
