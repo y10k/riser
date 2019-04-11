@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 module Riser
-  VERSION = '0.1.7'.freeze
+  VERSION = '0.1.8'.freeze
 end
 
 # Local Variables:
