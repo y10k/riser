@@ -215,9 +215,8 @@ module Riser
         rescue DRb::DRbConnError
           if (Time.now - t0 >= timeout_seconds) then
             raise
-          else
-            sleep(dt)
           end
+          sleep(dt)
           retry
         end
       end
