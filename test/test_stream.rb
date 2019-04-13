@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 require 'logger'
+require 'pp'if $DEBUG
 require 'riser'
 require 'stringio'
 require 'test/unit'
@@ -231,6 +232,30 @@ module Riser::Test
       assert_match(/close/, @log.string)
       assert_raise(IOError) { @io.gets }
       assert_raise(IOError) { @io.write('foo') }
+    end
+  end
+
+  class LoggingStreamClassMethodTest < Test::Unit::TestCase
+    data('STDOUT'   => STDOUT,
+         'STDIN'    => STDIN,
+         'STDERR'   => STDERR,
+         'StringIO' => StringIO.new)
+    def test_make_tag(io)
+      tag = Riser::LoggingStream.make_tag(io)
+      pp tag if $DEBUG
+      assert_instance_of(String, tag)
+      assert(! tag.empty?)
+      assert_equal(tag, Riser::LoggingStream.make_tag(io), 'if same object then same tag')
+    end
+
+    data('IO'       => [ STDIN, STDERR ],
+         'StringIO' => [ StringIO.new, StringIO.new ],
+         'hetero'   => [ STDIN, StringIO.new ])
+    def test_make_tag_identified(data)
+      io1, io2 = data
+      tag1 = Riser::LoggingStream.make_tag(io1)
+      tag2 = Riser::LoggingStream.make_tag(io2)
+      assert(tag1 != tag2)
     end
   end
 end

@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 
+require 'digest'
+
 module Riser
   class Stream
+    using CompatibleStringIO
+
     def initialize(io)
       @io = io
     end
@@ -74,6 +78,14 @@ module Riser
   end
 
   class LoggingStream < Stream
+    using CompatibleStringIO
+
+    def self.make_tag(io)
+      hex = Digest::SHA256.hexdigest(io.to_s)[0, 7]
+      fd = io.to_io.to_i
+      "[#{hex},#{fd}]"
+    end
+
     def initialize(io, logger)
       super(io)
       @logger = logger
