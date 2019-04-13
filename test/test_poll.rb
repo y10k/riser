@@ -11,6 +11,11 @@ module Riser::Test
       @read_poll = Riser::ReadPoll.new(@read_io)
     end
 
+    def teardown
+      @read_io.close unless @read_io.closed?
+      @write_io.close unless @write_io.closed?
+    end
+
     def test_read_poll_data
       @write_io.syswrite("HALO\n1")
 
@@ -54,11 +59,6 @@ module Riser::Test
 
       @read_poll.reset_timer
       assert(@read_poll.interval_seconds < @dt)
-    end
-
-    def teardown
-      @read_io.close unless @read_io.closed?
-      @write_io.close unless @write_io.closed?
     end
   end
 end
