@@ -89,33 +89,35 @@ module Riser
     def initialize(io, logger)
       super(io)
       @logger = logger
+      @tag = self.class.make_tag(io)
+      @logger.debug("#{@tag} start") if @logger.debug?
     end
 
     def gets
       line = super
-      @logger.info("r #{line.inspect}") if @logger.info?
+      @logger.info("#{@tag} r #{line.inspect}") if @logger.info?
       line
     end
 
     def read(size)
       data = super
-      @logger.info("r #{data.inspect}") if @logger.info?
+      @logger.info("#{@tag} r #{data.inspect}") if @logger.info?
       data
     end
 
     def readpartial(maxlen, outbuf=nil)
       data = super
-      @logger.info("r #{data.inspect}") if @logger.info?
+      @logger.info("#{@tag} r #{data.inspect}") if @logger.info?
       data
     end
 
     def write(message)
-      @logger.info("w #{message.inspect}") if @logger.info?
+      @logger.info("#{@tag} w #{message.inspect}") if @logger.info?
       super
     end
 
     def close
-      @logger.info('close') if @logger.info?
+      @logger.info("#{@tag} close") if @logger.info?
       super
     end
   end

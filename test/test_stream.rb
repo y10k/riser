@@ -135,10 +135,18 @@ module Riser::Test
     def make_string_stream(string="")
       @io = StringIO.new(string)
       @log = StringIO.new
-      @stream = Riser::LoggingStream.new(Riser::Stream.new(@io), Logger.new(@log)) # nested stream for restricted I/O check
+      @logger = Logger.new(@log)
+      @logger.level = Logger::DEBUG if $DEBUG
+      @stream = Riser::LoggingStream.new(Riser::Stream.new(@io), @logger) # nested stream for restricted I/O check
       nil
     end
     private :make_string_stream
+
+    def teardown
+      if ($DEBUG) then
+        puts @log.string
+      end
+    end
 
     def test_gets
       make_string_stream("foo\nbar")
