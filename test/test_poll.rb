@@ -61,6 +61,24 @@ module Riser::Test
       assert(@read_poll.interval_seconds < @dt)
     end
   end
+
+  class ReadPollCompatibleStringIOTest < Test::Unit::TestCase
+    def setup
+      @s = StringIO.new('foo')
+      @read_poll = Riser::ReadPoll.new(@s)
+    end
+
+    def test_read_poll
+      assert_equal(false, @s.eof?)
+      assert_equal(true, @read_poll.call(1))
+    end
+
+    def test_read_poll_eof
+      @s.read
+      assert_equal(true, @s.eof?)
+      assert_equal(false, @read_poll.call(1))
+    end
+  end
 end
 
 # Local Variables:

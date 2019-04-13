@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
 
 require 'io/wait'
+require 'stringio'
 
 module Riser
   class ReadPoll
+    using CompatibleStringIO
+
     def initialize(read_io)
       @read_io = read_io
       reset_timer
