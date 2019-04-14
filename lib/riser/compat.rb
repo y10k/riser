@@ -14,6 +14,10 @@ module Riser
       def to_i
         -1
       end
+
+      def wait_readable(timeout_seconds)
+        ! eof?
+      end
     end
   end
 end

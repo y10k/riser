@@ -18,6 +18,17 @@ module Riser::Test
     def test_to_i
       assert_kind_of(Integer, @s.to_i)
     end
+
+    def test_wait_readable
+      assert_equal(false, @s.eof?)
+      assert_equal(true, @s.wait_readable(1))
+    end
+
+    def test_wait_readable_eof
+      @s.read
+      assert_equal(true, @s.eof?)
+      assert_equal(false, @s.wait_readable(1))
+    end
   end
 end
 
