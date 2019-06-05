@@ -399,6 +399,60 @@ module Riser::Test
                    ], @recorder.get_file_records)
     end
 
+    def test_server_stop_forced_interrupt_graceful
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.at_stop{|state|
+        case (state)
+        when :graceful
+          @recorder.call('at_stop(graceful)')
+        when :forced
+          @recorder.call('at_stop(forced)')
+        else
+          flunk
+        end
+      }
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        while (line = socket.gets)
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+      }
+      server_pid = start_server
+
+      connect_server{|s|
+        s.write("foo\n")
+        assert_equal("foo\n", s.gets)
+
+        Process.kill(SIGNAL_STOP_GRACEFUL, server_pid)
+        sleep(server_polling_timeout_seconds * 10)
+
+        s.write("bar\n")
+        assert_equal("bar\n", s.gets)
+        s.write("baz\n")
+        assert_equal("baz\n", s.gets)
+
+        Process.kill(SIGNAL_STOP_FORCED, server_pid)
+        sleep(server_polling_timeout_seconds * 10)
+
+        assert_nil(s.gets 'should be closed by by server')
+      }
+      Process.wait(server_pid)
+
+      assert_equal(%w[
+                     dispatch
+                     request-response
+                     at_stop(graceful)
+                     request-response
+                     request-response
+                     at_stop(forced)
+                   ], @recorder.get_file_records)
+    end
+
     def test_server_stat_default
       server_polling_timeout_seconds = 0.001
       @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
@@ -799,6 +853,62 @@ module Riser::Test
                      dispatch
                      request-response
                      at_stop
+                   ], @recorder.get_file_records)
+    end
+
+    def test_server_stop_forced_interrupt_graceful
+      server_polling_timeout_seconds = 0.001
+      @server.accept_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_queue_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.process_send_io_polling_timeout_seconds = server_polling_timeout_seconds
+      @server.thread_queue_polling_timeout_seconds = server_polling_timeout_seconds
+
+      @server.at_stop{|state|
+        case (state)
+        when :graceful
+          @recorder.call('at_stop(graceful)')
+        when :forced
+          @recorder.call('at_stop(forced)')
+        else
+          flunk
+        end
+      }
+      @server.dispatch{|socket|
+        @recorder.call('dispatch')
+        while (line = socket.gets)
+          @recorder.call('request-response')
+          socket.write(line)
+        end
+        socket.close
+      }
+      server_pid = start_server
+
+      connect_server{|s|
+        s.write("foo\n")
+        assert_equal("foo\n", s.gets)
+
+        Process.kill(SIGNAL_STOP_GRACEFUL, server_pid)
+        sleep(server_polling_timeout_seconds * 10)
+
+        s.write("bar\n")
+        assert_equal("bar\n", s.gets)
+        s.write("baz\n")
+        assert_equal("baz\n", s.gets)
+
+        Process.kill(SIGNAL_STOP_FORCED, server_pid)
+        sleep(server_polling_timeout_seconds * 10)
+
+        assert_nil(s.gets 'should be closed by by server')
+      }
+      Process.wait(server_pid)
+
+      assert_equal(%w[
+                     dispatch
+                     request-response
+                     at_stop(graceful)
+                     request-response
+                     request-response
+                     at_stop(forced)
                    ], @recorder.get_file_records)
     end
 

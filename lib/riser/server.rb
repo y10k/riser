@@ -285,7 +285,9 @@ module Riser
 
     # should be called from signal(2) handler
     def signal_stop_forced
-      @stop_state ||= :forced
+      if (! @stop_state || @stop_state == :graceful) then
+        @stop_state = :forced
+      end
       nil
     end
 
