@@ -392,12 +392,14 @@ module Riser
         @at_stop.call(@stop_state)
         case (@stop_state)
         when :graceful
-          for thread in thread_list
-            thread.join
+          until (thread_list.empty?)
+            thread_list[0].join
+            thread_list.shift
           end
         when :forced
-          for thread in thread_list
-            thread.kill
+          until (thread_list.empty?)
+            thread_list[0].kill
+            thread_list.shift
           end
         else
           raise "internal error: unknown stop state <#{@stop_state.inspect}>"
