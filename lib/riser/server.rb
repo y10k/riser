@@ -218,6 +218,7 @@ module Riser
       @accept = nil
       @accept_return = nil
       @dispatch = nil
+      @dispose = nil
       @stop_state = nil
       @stat_operation_queue = []
     end
@@ -268,6 +269,11 @@ module Riser
 
     def dispatch(&block)        # :yields: socket
       @dispatch = block
+      nil
+    end
+
+    def dispose(&block)         # :yields:
+      @dispose = block
       nil
     end
 
@@ -339,12 +345,16 @@ module Riser
             thread_list << Thread.start(i) {|thread_number|
               begin
                 Thread.current[:number] = thread_number
-                while (socket = queue.pop)
-                  begin
-                    @dispatch.call(socket)
-                  ensure
-                    socket.close unless socket.closed?
+                begin
+                  while (socket = queue.pop)
+                    begin
+                      @dispatch.call(socket)
+                    ensure
+                      socket.close unless socket.closed?
+                    end
                   end
+                ensure
+                  @dispose.call
                 end
               rescue
                 error_lock.synchronize{
@@ -553,6 +563,7 @@ module Riser
           }
           thread_dispatcher.accept_return{ child_io.write(RADY_CMD) }
           thread_dispatcher.dispatch(&@dispatch)
+          thread_dispatcher.dispose(&NO_CALL)
 
           Signal.trap(SIGNAL_STOP_GRACEFUL) { thread_dispatcher.signal_stop_graceful }
           Signal.trap(SIGNAL_STOP_FORCED) { thread_dispatcher.signal_stop_forced }
@@ -627,12 +638,12 @@ module Riser
         response = process.io.read(RADY_LEN)
         response == RADY_CMD or raise "internal error: unknown response <#{response.inspect}>"
       }
-      @process_dispatcher.start
-
-      for process in process_list
+      @process_dispatcher.dispose{
+        process = process_list[Thread.current[:number]]
         Process.wait(process.pid)
         process.io.close
-      end
+      }
+      @process_dispatcher.start
 
       nil
     end
@@ -772,6 +783,7 @@ module Riser
         }
         @dispatcher.accept_return(&NO_CALL)
         @dispatcher.dispatch(&@dispatch)
+        @dispatcher.dispose(&NO_CALL)
       end
 
       nil
