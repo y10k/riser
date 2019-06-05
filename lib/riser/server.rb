@@ -389,21 +389,31 @@ module Riser
           queue.close
         end
 
-        @at_stop.call(@stop_state)
-        case (@stop_state)
-        when :graceful
-          until (thread_list.empty?)
-            thread_list[0].join
-            thread_list.shift
-          end
-        when :forced
-          until (thread_list.empty?)
-            thread_list[0].kill
-            thread_list.shift
-          end
-        else
-          raise "internal error: unknown stop state <#{@stop_state.inspect}>"
-        end
+        begin
+          done = catch(:retry_stopping) {
+            @at_stop.call(@stop_state)
+            case (@stop_state)
+            when :graceful
+              until (thread_list.empty?)
+                until (thread_list[0].join(@thread_queue_polling_timeout_seconds))
+                  if (@stop_state == :forced) then
+                    throw(:retry_stopping)
+                  end
+                end
+                thread_list.shift
+              end
+            when :forced
+              until (thread_list.empty?)
+                thread_list[0].kill
+                thread_list.shift
+              end
+            else
+              raise "internal error: unknown stop state <#{@stop_state.inspect}>"
+            end
+
+            true
+          }
+        end until (done)
       ensure
         @postprocess.call
       end
