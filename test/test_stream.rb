@@ -233,6 +233,13 @@ module Riser::Test
       assert_match(/w "baz"/, @log.string)
     end
 
+    def test_flush
+      make_string_stream
+
+      @stream.flush
+      assert_match(/flush/, @log.string)
+    end
+
     def test_close
       make_string_stream
 

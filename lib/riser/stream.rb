@@ -116,9 +116,15 @@ module Riser
       super
     end
 
-    def close
-      @logger.info("#{@tag} close") if @logger.info?
+    def flush
+      @logger.info("#{@tag} flush") if @logger.info?
       super
+    end
+
+    def close
+      ret_val = super
+      @logger.info("#{@tag} close") if @logger.info?
+      ret_val
     end
   end
 end
