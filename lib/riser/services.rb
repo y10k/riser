@@ -224,7 +224,7 @@ module Riser
       nil
     end
 
-    def start(timeout_seconds=30, local_druby_uri=Riser::TemporaryPath.make_drbunix_uri, config={ UNIXFileMode: 0600 })
+    def start(timeout_seconds=30, local_druby_uri: Riser::TemporaryPath.make_drbunix_uri, config: { UNIXFileMode: 0600 })
       @random = Random.new
       unless (DRb.primary_server) then
         DRb.start_service(local_druby_uri, nil, config)
