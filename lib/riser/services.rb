@@ -506,7 +506,7 @@ module Riser
       nil
     end
 
-    def start_client
+    def start_client(timeout_seconds=nil, local_druby_uri: nil, config: nil)
       @mutex.synchronize{
         while (@state.nil?)
           @state_cond.wait(@mutex)
@@ -582,13 +582,15 @@ module Riser
   class DRbServices
     extend Forwardable
 
-    def initialize(druby_process_num=0)
+    def initialize(druby_process_num=0, server_config: {}, client_config: {})
+      @server_config = { UNIXFileMode: 0600 }.update(server_config)
+      @client_config = { UNIXFileMode: 0600 }.update(client_config)
       if (druby_process_num > 0) then
         @server = DRbServiceServer.new
         @call = DRbServiceCall.new
         druby_process_num.times do
           drb_uri = Riser::TemporaryPath.make_drbunix_uri
-          @server.add_druby_process(drb_uri, UNIXFileMode: 0600)
+          @server.add_druby_process(drb_uri, @server_config)
           @call.add_druby_call(drb_uri)
         end
       else
@@ -619,7 +621,10 @@ module Riser
     def_delegator :@server, :detach, :detach_server # for forked child process
     def_delegator :@server, :stop, :stop_server
 
-    def_delegator :@call, :start, :start_client
+    def start_client(*args)
+      @call.start(*args, config: @client_config)
+    end
+
     def_delegators :@call, :get_service, :call_service, :[]
   end
 end

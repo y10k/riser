@@ -421,6 +421,55 @@ module Riser::Test
     end
   end
 
+  class DRbServicesConfigTest < Test::Unit::TestCase
+    def make_drb_services(server_config: {}, client_config: {})
+      if ($DEBUG) then
+        server_config[:verbose] = true
+        client_config[:verbose] = true
+      end
+
+      services = Riser::DRbServices.new(1, server_config: server_config, client_config: client_config)
+      services.add_any_process_service(:put, proc{|string| })
+      services.add_any_process_service(:get, proc{|size| ' ' * size })
+
+      # eliminate the effects of previous tests.
+      DRb.stop_service
+
+      services.start_server
+      begin
+        services.start_client
+        begin
+          yield(services)
+        ensure
+          DRb.stop_service
+        end
+      ensure
+        services.stop_server
+      end
+    end
+    private :make_drb_services
+
+    def test_server_load_limit
+      make_drb_services(server_config: { load_limit: 256 }) {|services|
+        services.call_service(:put, ' ' * 64)
+        error = assert_raise(DRb::DRbConnError) { services.call_service(:put, ' ' * 1024) }
+        assert_match(/too large packet/, error.message)
+        services.call_service(:get, 64)
+        services.call_service(:get, 1024)
+      }
+    end
+
+    def test_client_load_limit
+      make_drb_services(client_config: { load_limit: 256 }) {|services|
+        services.call_service(:put, ' ' * 64)
+        services.call_service(:put, ' ' * 1024)
+        services.call_service(:get, 64)
+        error = assert_raise(DRb::DRbConnError) { services.call_service(:get, 1024) }
+        assert_match(/too large packet/, error.message)
+      }
+    end
+  end
+
   class LocalServicesTest < Test::Unit::TestCase
     def setup
       @services = Riser::DRbServices.new(0)
