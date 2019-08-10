@@ -253,7 +253,7 @@ module Riser
     private :get_single_process_service
 
     def get_sticky_process_service(name, stickiness_key)
-      get_druby_service(name, stickiness_key.hash % @druby_call_list.length)
+      get_druby_service(name, [ name, stickiness_key ].hash % @druby_call_list.length)
     end
     private :get_sticky_process_service
 
