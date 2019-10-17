@@ -343,9 +343,9 @@ module Riser
 
       if (server_address.type == :unix) then
         if (@sysop.unlink(server_address.path)) then
-          @logger.info("delete unix server socket: #{server_address}")
+          @logger.info("delete unix domain server socket: #{server_address}")
         else
-          @logger.warn("failed to delete unix server socket: #{server_address}")
+          @logger.warn("failed to delete unix domain server socket: #{server_address}")
         end
       end
 
