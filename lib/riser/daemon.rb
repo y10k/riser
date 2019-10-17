@@ -299,10 +299,10 @@ module Riser
         if (@sysop.listen(server_socket, server_address.backlog)) then
           @logger.info("server socket backlog: #{server_address.backlog}")
         else
-          @logger.warn('server socket backlog is not changed.')
+          @logger.warn('server socket backlog cannot be changed.')
         end
       else
-        @logger.info('server socket backlog is default.')
+        @logger.info('server socket backlog is not changed.')
       end
 
       if (server_address.type == :unix) then
@@ -310,20 +310,20 @@ module Riser
           if (@sysop.chmod(server_address.mode, server_address.path)) then
             @logger.info("unix domain server socket mode: #{'%04o' % server_address.mode}")
           else
-            @logger.warn('unix domain server socket mode is not changed.')
+            @logger.warn('unix domain server socket mode cannot be changed.')
           end
         else
-          @logger.info('unix domain server socket mode is default.')
+          @logger.info('unix domain server socket mode is not changed.')
         end
 
         if (server_address.owner || server_address.group) then
           if (@sysop.chown(server_address.owner, server_address.group, server_address.path)) then
             @logger.info("unix domain server socket ownership: <#{server_address.owner}> <#{server_address.group}>")
           else
-            @logger.warn('unix domain server socket ownership is not changed.')
+            @logger.warn('unix domain server socket ownership cannot be changed.')
           end
         else
-          @logger.info('unix domain server socket ownership is default.')
+          @logger.info('unix domain server socket ownership is not changed.')
         end
       end
 
