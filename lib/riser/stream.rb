@@ -82,7 +82,8 @@ module Riser
 
     def self.make_tag(io)
       hex = Digest::SHA256.hexdigest(io.to_s)[0, 7]
-      fd = io.to_io.to_i
+      io = io.to_io
+      fd = io.to_i
       if (io.respond_to? :remote_address) then
         addr = io.remote_address
         if (addr.ip?) then
