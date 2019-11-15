@@ -631,6 +631,7 @@ module Riser
       daemon_name: 'ruby'.freeze,
       daemon_debug: $DEBUG,
       daemon_nochdir: true,
+      daemon_umask: 0037,
       status_file: nil,
       listen_address: nil,
       server_polling_interval_seconds: 3,
@@ -658,6 +659,8 @@ module Riser
     def start_daemon(config, &block) # :yields: socket_server
       c = DEFAULT.dup
       c.update(config)
+
+      File.umask(c[:daemon_umask])
 
       if (c[:status_file]) then
         status_file = StatusFile.new(c[:status_file])
