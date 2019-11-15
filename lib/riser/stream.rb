@@ -83,7 +83,19 @@ module Riser
     def self.make_tag(io)
       hex = Digest::SHA256.hexdigest(io.to_s)[0, 7]
       fd = io.to_io.to_i
-      "[#{hex},#{fd}]"
+      if (io.respond_to? :remote_address) then
+        addr = io.remote_address
+        if (addr.ip?) then
+          # expected only stream type
+          "[#{hex},#{fd},tcp://#{io.remote_address.inspect_sockaddr}]"
+        elsif (addr.unix?) then
+          "[#{hex},#{fd},unix:#{io.remote_address.unix_path}]"
+        else
+          "[#{hex},#{fd},unknown:#{io.remote_address.inspect_sockaddr}]"
+        end
+      else
+        "[#{hex},#{fd}]"
+      end
     end
 
     def initialize(io, logger)

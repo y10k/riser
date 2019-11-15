@@ -3,6 +3,7 @@
 require 'logger'
 require 'pp'if $DEBUG
 require 'riser'
+require 'socket'
 require 'stringio'
 require 'test/unit'
 
@@ -251,10 +252,13 @@ module Riser::Test
   end
 
   class LoggingStreamClassMethodTest < Test::Unit::TestCase
-    data('STDOUT'   => STDOUT,
-         'STDIN'    => STDIN,
-         'STDERR'   => STDERR,
-         'StringIO' => StringIO.new)
+    data('STDOUT'     => STDOUT,
+         'STDIN'      => STDIN,
+         'STDERR'     => STDERR,
+         'StringIO'   => StringIO.new,
+         'tcp'        => StringIO.new.tap{|s| def s.remote_address; Addrinfo.tcp('localhost', 30000); end },
+         'unix:empty' => StringIO.new.tap{|s| def s.remote_address; Addrinfo.unix(''); end },
+         'unix:path'  => StringIO.new.tap{|s| def s.remote_address; Addrinfo.unix('/tmp/foo'); end })
     def test_make_tag(io)
       tag = Riser::LoggingStream.make_tag(io)
       pp tag if $DEBUG
