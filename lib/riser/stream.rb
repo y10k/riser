@@ -14,8 +14,8 @@ module Riser
       @io.to_io
     end
 
-    def gets
-      @io.gets
+    def gets(*args, **kw_args)
+      @io.gets(*args, **kw_args)
     end
 
     def read(size)
@@ -106,7 +106,7 @@ module Riser
       @logger.debug("#{@tag} start") if @logger.debug?
     end
 
-    def gets
+    def gets(*args, **kw_args)
       line = super
       @logger.info("#{@tag} r #{line.inspect}") if @logger.info?
       line

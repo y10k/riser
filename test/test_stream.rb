@@ -32,6 +32,28 @@ module Riser::Test
       assert_nil(@stream.gets)
     end
 
+    data('default'        => [ "foo\n",     "foo\n", [],          {} ],
+         'rs'             => [ "foo\r",     "foo\r", [ "\r" ],    {} ],
+         'chomp'          => [ "foo\n",     'foo',   [],          { chomp: true } ],
+         'rs_chomp'       => [ "foo\r",     'foo',   [ "\r" ],    { chomp: true } ],
+         'limit'          => [ "foo_bar\n", 'foo_',  [ 4 ],       {} ],
+         'rs_limit_chomp' => [ "foo_bar\r", 'foo_',  [ "\r", 4 ], { chomp: true } ])
+    def test_gets_optional_arguments(data)
+      input_data, expected_line, args, kw_args = data
+      src, dst = UNIXSocket.socketpair
+      begin
+        begin
+          src << input_data
+          stream = Riser::Stream.new(dst)
+          assert_equal(expected_line, stream.gets(*args, **kw_args))
+        ensure
+          src.close
+        end
+      ensure
+        dst.close
+      end
+    end
+
     def test_read
       make_string_stream('1234567')
       assert_equal('12345', @stream.read(5))
@@ -164,6 +186,25 @@ module Riser::Test
 
       assert_nil(@stream.gets)
       assert_match(/r "foo\\n"/, @log.string)
+      assert_match(/r "bar"/, @log.string)
+      assert_match(/r nil/, @log.string)
+    end
+
+    def test_gets_optional_arguments
+      make_string_stream("foo\rbar")
+
+      assert_equal("foo\r", @stream.gets("\r"))
+      assert_match(/r "foo\\r"/, @log.string)
+      assert_not_match(/r "bar"/, @log.string)
+      assert_not_match(/r nil/, @log.string)
+
+      assert_equal("bar", @stream.gets("\r"))
+      assert_match(/r "foo\\r"/, @log.string)
+      assert_match(/r "bar"/, @log.string)
+      assert_not_match(/r nil/, @log.string)
+
+      assert_nil(@stream.gets("\r"))
+      assert_match(/r "foo\\r"/, @log.string)
       assert_match(/r "bar"/, @log.string)
       assert_match(/r nil/, @log.string)
     end
