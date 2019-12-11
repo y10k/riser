@@ -15,7 +15,11 @@ module Riser
     end
 
     def gets(*args, **kw_args)
-      @io.gets(*args, **kw_args)
+      if (kw_args.empty?) then
+        @io.gets(*args)         # to avoid converting keyword arguments to Hash in Ruby 2.6
+      else
+        @io.gets(*args, **kw_args)
+      end
     end
 
     def read(size)
