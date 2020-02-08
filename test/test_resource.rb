@@ -227,6 +227,19 @@ module Riser::Test
       error = assert_raise(ArgumentError) { array.__getobj__ }
       assert_match(/not delegated/, error.message)
     end
+
+    class KeywordArgumentExample
+      def foo(bar: 'baz')
+      end
+    end
+
+    # no warning messages?
+    def test_resouce_proxy_keyword_argument_forwarding
+      resource = make_resource(at_create: -> { KeywordArgumentExample.new })
+      resource.call{|kw_args|
+        kw_args.foo(bar: 'test')
+      }
+    end
   end
 
   class ResourceSetTest < Test::Unit::TestCase
@@ -480,6 +493,19 @@ module Riser::Test
 
       error = assert_raise(ArgumentError) { alice.__getobj__ }
       assert_match(/not delegated/, error.message)
+    end
+
+    class KeywordArgumentExample
+      def foo(bar: 'baz')
+      end
+    end
+
+    # no warning messages?
+    def test_resouce_proxy_keyword_argument_forwarding
+      resource_set = make_resource_set(at_create: ->(key) { KeywordArgumentExample.new })
+      resource_set.call('alice') {|kw_args|
+        kw_args.foo(bar: 'test')
+      }
     end
   end
 end
