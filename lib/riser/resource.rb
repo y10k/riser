@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+require 'anytick'
 require 'delegate'
 require 'drb'
 require 'forwardable'
@@ -96,13 +97,16 @@ module Riser
     end
 
     module DelegateUnrefAlias
-      def method_missing(name, *args, &block)
-        if (@unref_alias_set.include? name.to_sym) then
-          __unref__
-        else
-          super
-        end
-      end
+      extend Anytick.rule(Anytick::DefineMethod)
+
+      `def method_missing(name, [...])
+         if (@unref_alias_set.include? name.to_sym) then
+           __unref__
+         else
+           super
+         end
+       end
+      `
 
       def respond_to_missing?(name, include_private)
         if (@unref_alias_set.include? name.to_sym) then
