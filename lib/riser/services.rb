@@ -621,8 +621,8 @@ module Riser
     def_delegator :@server, :detach, :detach_server # for forked child process
     def_delegator :@server, :stop, :stop_server
 
-    def start_client(*args)
-      @call.start(*args, config: @client_config)
+    def start_client(*args, **kw_args)
+      @call.start(*args, **kw_args, config: @client_config)
     end
 
     def_delegators :@call, :get_service, :call_service, :[]
