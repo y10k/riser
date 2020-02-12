@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+require 'anytick'
 require 'digest'
 
 module Riser
   class Stream
+    extend Anytick.rule(Anytick::DefineMethod)
     using CompatibleStringIO
 
     def initialize(io)
@@ -14,13 +16,11 @@ module Riser
       @io.to_io
     end
 
-    def gets(*args, **kw_args)
-      if (kw_args.empty?) then
-        @io.gets(*args)         # to avoid converting keyword arguments to Hash in Ruby 2.6
-      else
-        @io.gets(*args, **kw_args)
-      end
-    end
+    # compatible with Ruby 2.6 and 2.7
+    `def gets(...)
+       @io.gets(...)
+     end
+    `
 
     def read(size)
       @io.read(size)
@@ -110,11 +110,13 @@ module Riser
       @logger.debug("#{@tag} start") if @logger.debug?
     end
 
-    def gets(*args, **kw_args)
-      line = super
-      @logger.info("#{@tag} r #{line.inspect}") if @logger.info?
-      line
-    end
+    # compatible with Ruby 2.6 and 2.7
+    `def gets(...)
+       line = super
+       @logger.info("\#{@tag} r \#{line.inspect}") if @logger.info?
+       line
+     end
+    `
 
     def read(size)
       data = super
