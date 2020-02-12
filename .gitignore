@@ -9,6 +9,7 @@
 /vendor/
 /Gemfile.lock
 /README.html
+/CHANGELOG.html
 *~
 *.log
 *.pid
