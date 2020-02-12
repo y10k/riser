@@ -8,6 +8,7 @@
 /tmp/
 /vendor/
 /Gemfile.lock
+/README.html
 *~
 *.log
 *.pid
