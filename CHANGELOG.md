@@ -9,6 +9,24 @@ subsections:
 ### Fixed
 -->
 
+0.2.0
+-----
+Released on 2020-02-13.
+
+### Added
+- Added changelog.
+  [#10](https://github.com/y10k/riser/issues/10)
+
+### Changed
+- Changed to semantic versioning.
+  [#7](https://github.com/y10k/riser/issues/7)
+
+### Fixed
+- Suppressed warnings on Ruby 2.7.
+  [#8](https://github.com/y10k/riser/issues/8)
+- Arguments forwarding compatible with Ruby 2.6 and 2.7.
+  [#9](https://github.com/y10k/riser/issues/9)
+
 0.1.15
 ------
 Released on 2019-12-11.
