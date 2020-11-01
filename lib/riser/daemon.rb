@@ -353,6 +353,29 @@ module Riser
     end
     private :server_socket_close
 
+    def add_terminated_child_process(pid)
+      @process_wait_count_table[pid] = 0
+      pid
+    end
+    private :add_terminated_child_process
+
+    def wait_terminated_child_processes
+      for pid in @process_wait_count_table.keys
+        if (@sysop.wait(pid, Process::WNOHANG)) then
+          @logger.info("server stop completed (pid: #{pid})")
+          @process_wait_count_table.delete(pid)
+        else
+          @process_wait_count_table[pid] += 1
+          if (@process_wait_count_table[pid] >= 2) then
+            @logger.warn("not stopped server process (pid: #{pid})")
+          end
+        end
+      end
+
+      nil
+    end
+    private :wait_terminated_child_processes
+
     def run_server(server_socket)
       read_write = @sysop.pipe
       unless (read_write) then
@@ -416,7 +439,7 @@ module Riser
 
       if (! server_messg || error_count > 0) then
         @sysop.send_signal(pid, SIGNAL_STOP_FORCED) or @logger.error("failed to kill abnormal server process (pid: #{pid})")
-        @process_wait_count_table[pid] = 0
+        add_terminated_child_process(pid)
         @logger.error('failed to start server.')
         return
       end
@@ -521,7 +544,7 @@ module Riser
                   @logger.warn("internal warning: unknown signal operation <#{sig_ope.inspect}>")
                 end
 
-                @process_wait_count_table[server_pid] = 0
+                add_terminated_child_process(server_pid)
                 server_pid = next_pid
               else
                 @logger.warn("server continue (pid: #{server_pid})")
@@ -549,17 +572,7 @@ module Riser
             end
           end
 
-          for pid in @process_wait_count_table.keys
-            if (@sysop.wait(pid, Process::WNOHANG)) then
-              @logger.info("server stop completed (pid: #{pid})")
-              @process_wait_count_table.delete(pid)
-            else
-              @process_wait_count_table[pid] += 1
-              if (@process_wait_count_table[pid] >= 2) then
-                @logger.warn("not stopped server process (pid: #{pid})")
-              end
-            end
-          end
+          wait_terminated_child_processes
         end
 
         if (server_pid) then
