@@ -1138,7 +1138,7 @@ module Riser::Test
       gr = Etc.getgrgid(Process.gid)
       assert_equal(gr.gid, Riser::Daemon.get_gid(gr.name))
 
-      assert_raise(ArgumentError) { Riser::Daemon.get_gid('nothing_group') }
+      assert_raise(ArgumentError, Errno::ESRCH) { Riser::Daemon.get_gid('nothing_group') }
     end
   end
 end
